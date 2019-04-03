@@ -1,0 +1,81 @@
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: static-pod-ips.staticmacvlan.rancher.com
+spec:
+  group: staticmacvlan.rancher.com
+  version: v1
+  scope: Namespaced
+  names:
+    plural: static-pod-ips
+    singular: static-pod-ip
+    kind: StaticPodIP
+    shortNames:
+    - static-pod-ip
+  subresources:
+    status: {}
+  validation:
+    openAPIV3Schema:
+      properties:
+        spec:
+          properties:
+            ip:
+                 type: string
+            pod-id:
+                 type: string
+            status:
+                 type: string
+            vlan:
+                 type: string
+  additionalPrinterColumns:
+  - name: IP
+    type: string
+    JSONPath: .spec.ip
+  - name: Pod-ID
+    type: string
+    JSONPath: .spec.pod-id
+  - name: VLan
+    type: string
+    JSONPath: .spec.vlan
+  - name: Status
+    type: string
+    JSONPath: .spec.status
+
+---
+
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: vlan-subnets.staticmacvlan.rancher.com
+spec:
+  group: staticmacvlan.rancher.com
+  version: v1
+  names:
+    kind: VlanSubnet
+    plural: vlan-subnets
+  scope: Namespaced
+  subresources:
+    status: {}
+  validation:
+    openAPIV3Schema:
+      properties:
+        spec:
+          properties:
+            master:
+                 type: string
+            tag:
+                 type: string
+            cidr:
+                 type: string
+  additionalPrinterColumns:
+  - name: Master
+    type: string
+    JSONPath: .spec.master
+  - name: Tag
+    type: string
+    JSONPath: .spec.tag
+  - name: CIDR
+    type: string
+    JSONPath: .spec.cidr
+---

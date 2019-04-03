@@ -1,0 +1,10 @@
+---
+apiVersion: "staticmacvlan.rancher.com/v1"
+kind: StaticPodIP
+metadata:
+  name: ip123
+spec:
+  ip: "1.2.3.4"
+  pod-id: "123"
+  status: "using"
+---

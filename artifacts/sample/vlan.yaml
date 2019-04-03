@@ -1,0 +1,10 @@
+---
+apiVersion: "staticmacvlan.rancher.com/v1"
+kind: VlanSubnet
+metadata:
+  name: ip123
+spec:
+  master: "vlan1"
+  tag: "vlan1.100"
+  cidr: "192.168.1.0/24"
+---
