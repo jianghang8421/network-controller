@@ -52,7 +52,7 @@ spec:
   group: staticmacvlan.rancher.com
   version: v1
   names:
-    kind: VlanSubnet
+    kind: VLANSubnet
     plural: vlan-subnets
   scope: Namespaced
   subresources:

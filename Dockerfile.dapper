@@ -1,9 +1,12 @@
-FROM golang:1.11-alpine
+#FROM golang:1.11-alpine
+FROM golang:1.11
 
 ARG DAPPER_HOST_ARCH
 ENV ARCH $DAPPER_HOST_ARCH
 
-RUN apk -U add bash git gcc musl-dev docker vim less file curl wget ca-certificates
+#RUN apk -U add bash git gcc musl-dev docker vim less file curl wget ca-certificates
+RUN apt-get update && apt-get install -y bash git gcc musl-dev docker vim less file curl wget ca-certificates
+
 RUN go get -d golang.org/x/lint/golint && \
     git -C /go/src/golang.org/x/lint/golint checkout -b current 06c8688daad7faa9da5a0c2f163a3d14aac986ca && \
     go install golang.org/x/lint/golint && \
@@ -19,7 +22,7 @@ RUN go get -d github.com/rancher/trash && \
     rm -rf /go/src /go/pkg
 
 ENV DAPPER_ENV REPO TAG DRONE_TAG
-ENV DAPPER_SOURCE /go/src/github.com/wardenlym/static-pod-controller/
+ENV DAPPER_SOURCE /go/src/github.com/wardenlym/static-macvlan-cni/
 ENV DAPPER_OUTPUT ./bin ./dist
 ENV DAPPER_DOCKER_SOCKET true
 ENV TRASH_CACHE ${DAPPER_SOURCE}/.trash-cache
