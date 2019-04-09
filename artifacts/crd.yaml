@@ -2,33 +2,34 @@
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
-  name: static-pod-ips.staticmacvlan.rancher.com
+  name: staticpods.staticmacvlan.rancher.com
 spec:
   group: staticmacvlan.rancher.com
   version: v1
   scope: Namespaced
   names:
-    plural: static-pod-ips
-    singular: static-pod-ip
-    kind: StaticPodIP
+    plural: staticpods
+    singular: staticpod
+    kind: StaticPod
     shortNames:
-    - static-pod-ip
-  subresources:
-    status: {}
+    - staticpod
   validation:
     openAPIV3Schema:
       properties:
         spec:
           properties:
+            container-id:
+                 type: string
             ip:
                  type: string
             pod-id:
                  type: string
-            status:
-                 type: string
             vlan:
                  type: string
   additionalPrinterColumns:
+  - name: Container-ID
+    type: string
+    JSONPath: .spec.container-id
   - name: IP
     type: string
     JSONPath: .spec.ip
@@ -38,25 +39,20 @@ spec:
   - name: VLan
     type: string
     JSONPath: .spec.vlan
-  - name: Status
-    type: string
-    JSONPath: .spec.status
 
 ---
 
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
-  name: vlan-subnets.staticmacvlan.rancher.com
+  name: vlansubnets.staticmacvlan.rancher.com
 spec:
   group: staticmacvlan.rancher.com
   version: v1
   names:
     kind: VLANSubnet
-    plural: vlan-subnets
+    plural: vlansubnets
   scope: Namespaced
-  subresources:
-    status: {}
   validation:
     openAPIV3Schema:
       properties:
