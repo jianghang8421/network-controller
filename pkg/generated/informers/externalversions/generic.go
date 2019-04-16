@@ -55,6 +55,8 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 	// Group=staticmacvlan.rancher.com, Version=v1
 	case v1.SchemeGroupVersion.WithResource("staticpods"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Staticmacvlan().V1().StaticPods().Informer()}, nil
+	case v1.SchemeGroupVersion.WithResource("vlansubnets"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Staticmacvlan().V1().VLANSubnets().Informer()}, nil
 
 	}
 

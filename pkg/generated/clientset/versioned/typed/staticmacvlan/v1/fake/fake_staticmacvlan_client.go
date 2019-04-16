@@ -32,6 +32,10 @@ func (c *FakeStaticmacvlanV1) StaticPods(namespace string) v1.StaticPodInterface
 	return &FakeStaticPods{c, namespace}
 }
 
+func (c *FakeStaticmacvlanV1) VLANSubnets(namespace string) v1.VLANSubnetInterface {
+	return &FakeVLANSubnets{c, namespace}
+}
+
 // RESTClient returns a RESTClient that is used to communicate
 // with API server by this client implementation.
 func (c *FakeStaticmacvlanV1) RESTClient() rest.Interface {

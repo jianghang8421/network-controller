@@ -7,6 +7,7 @@ import (
 
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog"
 
@@ -24,16 +25,25 @@ var (
 )
 
 func main() {
-	fmt.Println("run1")
+	fmt.Println("static-pod-controller")
 	flag.Parse()
+
+	var err error
+	var cfg *rest.Config
+	if kubeconfig == "" {
+		cfg, err = rest.InClusterConfig()
+		if err != nil {
+			klog.Fatalf("Error get cluster kubeconfig: %s", err.Error())
+		}
+	} else {
+		cfg, err = clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
+		if err != nil {
+			klog.Fatalf("Error building kubeconfig: %s", err.Error())
+		}
+	}
 
 	// set up signals so we handle the first shutdown signal gracefully
 	stopCh := signals.SetupSignalHandler()
-
-	cfg, err := clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
-	if err != nil {
-		klog.Fatalf("Error building kubeconfig: %s", err.Error())
-	}
 
 	kubeClient, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
@@ -51,14 +61,15 @@ func main() {
 	controller := NewController(kubeClient, staticmacvlanClientSet,
 		kubeInformerFactory.Apps().V1().Deployments(),
 		kubeInformerFactory.Core().V1().Pods(),
-		staticmacvlanInformerFactory.Staticmacvlan().V1().StaticPods())
+		staticmacvlanInformerFactory.Staticmacvlan().V1().StaticPods(),
+		staticmacvlanInformerFactory.Staticmacvlan().V1().VLANSubnets())
 
 	// notice that there is no need to run Start methods in a separate goroutine. (i.e. go kubeInformerFactory.Start(stopCh)
 	// Start method is non-blocking and runs all registered informers in a dedicated goroutine.
-	fmt.Println("run1")
+	fmt.Println("informer start")
 	kubeInformerFactory.Start(stopCh)
 	staticmacvlanInformerFactory.Start(stopCh)
-	fmt.Println("run")
+	fmt.Println("controller run")
 	if err = controller.Run(2, stopCh); err != nil {
 		klog.Fatalf("Error running controller: %s", err.Error())
 	}

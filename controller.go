@@ -18,8 +18,9 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog"
 
+	"github.com/wardenlym/static-pod-controller/cidr"
 	clientset "github.com/wardenlym/static-pod-controller/pkg/generated/clientset/versioned"
-	samplescheme "github.com/wardenlym/static-pod-controller/pkg/generated/clientset/versioned/scheme"
+	staticmacvlanscheme "github.com/wardenlym/static-pod-controller/pkg/generated/clientset/versioned/scheme"
 	informers "github.com/wardenlym/static-pod-controller/pkg/generated/informers/externalversions/staticmacvlan/v1"
 	listers "github.com/wardenlym/static-pod-controller/pkg/generated/listers/staticmacvlan/v1"
 	staticmacvlanv1 "github.com/wardenlym/static-pod-controller/types/apis/staticmacvlan/v1"
@@ -30,28 +31,20 @@ const controllerAgentName = "static-pod-controller"
 
 // Controller is the controller implementation for Foo resources
 type Controller struct {
-	// kubeclientset is a standard kubernetes clientset
-	kubeclientset kubernetes.Interface
-	// sampleclientset is a clientset for our own API group
+	kubeclientset          kubernetes.Interface
 	staticmacvlanclientset clientset.Interface
-
-	// deploymentsLister appslisters.DeploymentLister
-	// deploymentsSynced cache.InformerSynced
 
 	staticpodsLister listers.StaticPodLister
 	staticpodsSynced cache.InformerSynced
 
+	vlansubnetsLister listers.VLANSubnetLister
+	vlansubnetsSynced cache.InformerSynced
+
 	podsLister corelisters.PodLister
 	podsSynced cache.InformerSynced
-	// workqueue is a rate limited work queue. This is used to queue work to be
-	// processed instead of performing it as soon as a change happens. This
-	// means we can ensure we only process a fixed amount of resources at a
-	// time, and makes it easy to ensure we are never processing the same item
-	// simultaneously in two different workers.
+
 	workqueue workqueue.RateLimitingInterface
-	// recorder is an event recorder for recording Event resources to the
-	// Kubernetes API.
-	recorder record.EventRecorder
+	recorder  record.EventRecorder
 }
 
 // NewController returns a new sample controller
@@ -60,12 +53,10 @@ func NewController(
 	staticmacvlanclientset clientset.Interface,
 	deploymentInformer appsinformers.DeploymentInformer,
 	podInformer coreinformers.PodInformer,
-	staticpodInformer informers.StaticPodInformer) *Controller {
+	staticpodInformer informers.StaticPodInformer,
+	vlansubnetInformer informers.VLANSubnetInformer) *Controller {
 
-	// Create event broadcaster
-	// Add sample-controller types to the default Kubernetes Scheme so Events can be
-	// logged for sample-controller types.
-	utilruntime.Must(samplescheme.AddToScheme(scheme.Scheme))
+	utilruntime.Must(staticmacvlanscheme.AddToScheme(scheme.Scheme))
 	klog.V(4).Info("Creating event broadcaster")
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartLogging(klog.Infof)
@@ -75,10 +66,12 @@ func NewController(
 	controller := &Controller{
 		kubeclientset:          kubeclientset,
 		staticmacvlanclientset: staticmacvlanclientset,
-		// deploymentsLister:      deploymentInformer.Lister(),
-		// deploymentsSynced:      deploymentInformer.Informer().HasSynced,
+
 		staticpodsLister: staticpodInformer.Lister(),
 		staticpodsSynced: staticpodInformer.Informer().HasSynced,
+
+		vlansubnetsLister: vlansubnetInformer.Lister(),
+		vlansubnetsSynced: vlansubnetInformer.Informer().HasSynced,
 
 		podsLister: podInformer.Lister(),
 		podsSynced: podInformer.Informer().HasSynced,
@@ -88,16 +81,17 @@ func NewController(
 	}
 
 	klog.Info("Setting up event handlers")
-	// Set up an event handler for when Foo resources change
-	// staticpodInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-	// 	AddFunc: controller.enqueueFoo,
-	// 	UpdateFunc: func(old, new interface{}) {
-	// 		// controller.enqueueFoo(new)
-	// 	},
-	// })
 
 	podInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: controller.enqueuePod,
+		AddFunc:    controller.onPodAdd,
+		DeleteFunc: controller.onPodDelete,
+		UpdateFunc: controller.onPodUpdate,
+	})
+
+	vlansubnetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    controller.onVLANSubnetAdd,
+		DeleteFunc: controller.onVLANSubnetDelete,
+		UpdateFunc: controller.onVLANSubnetUpdate,
 	})
 
 	return controller
@@ -153,7 +147,66 @@ func (c *Controller) processNextWorkItem() bool {
 	return true
 }
 
-func (c *Controller) enqueuePod(obj interface{}) {
+func (c *Controller) onPodAdd(obj interface{}) {
+	pod := obj.(*corev1.Pod)
+
+	annotationIP, exist := pod.GetAnnotations()["static-ip"]
+	if !exist {
+		return
+	}
+
+	vlansubnetName, exist := pod.GetAnnotations()["vlan"]
+	if !exist {
+		return
+	}
+
+	podName := pod.GetName()
+	podNamespace := pod.GetNamespace()
+
+	// TODO: use kube-system or cattle-system namesapce
+	vlan, err := c.staticmacvlanclientset.StaticmacvlanV1().VLANSubnets(podNamespace).Get(vlansubnetName, metav1.GetOptions{})
+	if err != nil {
+		fmt.Printf("Get VLANSubnet error: %s %s\n", vlansubnetName, err)
+		return
+	}
+
+	if annotationIP == "auto" {
+		annotationIP, err = cidr.RandomCIDR(vlan.Spec.CIDR)
+		if err != nil {
+			fmt.Printf("allocteIPinVLAN  %s  cidr(%s)  ip(%s)\n", err, vlan.Spec.CIDR, annotationIP)
+			return
+		}
+	}
+
+	annotationMac := pod.GetAnnotations()["static-mac"]
+
+	fmt.Printf("Pod creating: podName %s - annotationIP %s \n", podName, annotationIP)
+
+	staticpod := &staticmacvlanv1.StaticPod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      podName,
+			Namespace: podNamespace,
+		},
+		Spec: staticmacvlanv1.StaticPodSpec{
+			IP:    annotationIP,
+			MAC:   annotationMac,
+			PodID: string(pod.GetUID()),
+			VLAN:  vlan.Name,
+		},
+	}
+	staticpodInfo, err := c.staticmacvlanclientset.StaticmacvlanV1().StaticPods(podNamespace).Create(staticpod)
+	if err != nil {
+		fmt.Printf("StaticPods create error: %s %s", err, staticpodInfo.Name)
+	} else {
+		fmt.Printf("StaticPods created : %s %s", staticpodInfo.Name, staticpodInfo.Spec.IP)
+	}
+}
+
+func (c *Controller) onPodUpdate(old, new interface{}) {
+}
+
+func (c *Controller) onPodDelete(obj interface{}) {
+
 	pod := obj.(*corev1.Pod)
 
 	annotationIP, exist := pod.GetAnnotations()["static-ip"]
@@ -164,24 +217,24 @@ func (c *Controller) enqueuePod(obj interface{}) {
 	podName := pod.GetName()
 	podNamespace := pod.GetNamespace()
 
-	fmt.Printf("Pod add: podName %s - annotationIP %s \n", podName, annotationIP)
+	fmt.Printf("Pod delete: podName %s - annotationIP %s \n", podName, annotationIP)
 
-	staticpod := &staticmacvlanv1.StaticPod{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      podName,
-			Namespace: podNamespace,
-		},
-		Spec: staticmacvlanv1.StaticPodSpec{
-			ContainerID: "",
-			IP:          annotationIP,
-			PodID:       string(pod.GetUID()),
-			VLan:        "mv123",
-		},
-	}
-	staticpod2, err := c.staticmacvlanclientset.StaticmacvlanV1().StaticPods(podNamespace).Create(staticpod)
+	err := c.staticmacvlanclientset.StaticmacvlanV1().StaticPods(podNamespace).Delete(podName, &metav1.DeleteOptions{})
 	if err != nil {
-		fmt.Printf("StaticPods create error: %s %s", err, staticpod2.Name)
+		fmt.Printf("StaticPods delete error: %s %s", err, podName)
 	} else {
-		fmt.Printf("StaticPods created : %s %s", staticpod2.Name, staticpod2.Spec.IP)
+		fmt.Printf("StaticPods deleted : %s", podName)
 	}
+}
+
+func (c *Controller) onVLANSubnetAdd(obj interface{}) {
+
+}
+
+func (c *Controller) onVLANSubnetUpdate(old, new interface{}) {
+
+}
+
+func (c *Controller) onVLANSubnetDelete(obj interface{}) {
+
 }

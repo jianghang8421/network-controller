@@ -1,0 +1,71 @@
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: staticpods.staticmacvlan.rancher.com
+spec:
+  group: staticmacvlan.rancher.com
+  version: v1
+  scope: Namespaced
+  names:
+    plural: staticpods
+    singular: staticpod
+    kind: StaticPod
+    shortNames:
+    - staticpod
+  validation:
+    openAPIV3Schema:
+      properties:
+        spec:
+          properties:
+            vlan:
+                 type: string
+            pod-id:
+                 type: string
+            ip:
+                 type: string
+            mac:
+                 type: string              
+
+  additionalPrinterColumns:
+  - name: VLan
+    type: string
+    JSONPath: .spec.vlan
+  - name: Pod-ID
+    type: string
+    JSONPath: .spec.pod-id
+  - name: IP
+    type: string
+    JSONPath: .spec.ip
+  - name: MAC
+    type: string
+    JSONPath: .spec.mac
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: vlansubnets.staticmacvlan.rancher.com
+spec:
+  group: staticmacvlan.rancher.com
+  version: v1
+  names:
+    kind: VLANSubnet
+    plural: vlansubnets
+  scope: Namespaced
+  validation:
+    openAPIV3Schema:
+      properties:
+        spec:
+          properties:
+            master:
+                 type: string
+            cidr:
+                 type: string
+  additionalPrinterColumns:
+  - name: Master
+    type: string
+    JSONPath: .spec.master
+  - name: CIDR
+    type: string
+    JSONPath: .spec.cidr
+---

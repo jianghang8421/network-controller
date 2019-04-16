@@ -1,0 +1,21 @@
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: samplepod2
+  labels:
+    app: samplepod
+  annotations:
+    k8s.v1.cni.cncf.io/networks: static-macvlan-cni
+    static-ip: auto
+    vlan: mv1.100
+spec:
+  containers:
+  - image: busybox
+    command:
+      - sleep
+      - "3600000000"
+    imagePullPolicy: IfNotPresent
+    name: busybox
+  restartPolicy: Always
+---

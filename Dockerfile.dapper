@@ -22,7 +22,7 @@ RUN go get -d github.com/rancher/trash && \
     rm -rf /go/src /go/pkg
 
 ENV DAPPER_ENV REPO TAG DRONE_TAG
-ENV DAPPER_SOURCE /go/src/github.com/wardenlym/static-macvlan-cni/
+ENV DAPPER_SOURCE /go/src/github.com/wardenlym/static-pod-controller/
 ENV DAPPER_OUTPUT ./bin ./dist
 ENV DAPPER_DOCKER_SOCKET true
 ENV TRASH_CACHE ${DAPPER_SOURCE}/.trash-cache

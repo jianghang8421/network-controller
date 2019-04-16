@@ -26,6 +26,8 @@ import (
 type Interface interface {
 	// StaticPods returns a StaticPodInformer.
 	StaticPods() StaticPodInformer
+	// VLANSubnets returns a VLANSubnetInformer.
+	VLANSubnets() VLANSubnetInformer
 }
 
 type version struct {
@@ -42,4 +44,9 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 // StaticPods returns a StaticPodInformer.
 func (v *version) StaticPods() StaticPodInformer {
 	return &staticPodInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// VLANSubnets returns a VLANSubnetInformer.
+func (v *version) VLANSubnets() VLANSubnetInformer {
+	return &vLANSubnetInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

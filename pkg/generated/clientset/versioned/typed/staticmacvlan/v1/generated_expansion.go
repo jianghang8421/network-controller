@@ -19,3 +19,5 @@ limitations under the License.
 package v1
 
 type StaticPodExpansion interface{}
+
+type VLANSubnetExpansion interface{}

@@ -28,6 +28,7 @@ import (
 type StaticmacvlanV1Interface interface {
 	RESTClient() rest.Interface
 	StaticPodsGetter
+	VLANSubnetsGetter
 }
 
 // StaticmacvlanV1Client is used to interact with features provided by the staticmacvlan.rancher.com group.
@@ -37,6 +38,10 @@ type StaticmacvlanV1Client struct {
 
 func (c *StaticmacvlanV1Client) StaticPods(namespace string) StaticPodInterface {
 	return newStaticPods(c, namespace)
+}
+
+func (c *StaticmacvlanV1Client) VLANSubnets(namespace string) VLANSubnetInterface {
+	return newVLANSubnets(c, namespace)
 }
 
 // NewForConfig creates a new StaticmacvlanV1Client for the given config.

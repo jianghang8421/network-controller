@@ -25,3 +25,11 @@ type StaticPodListerExpansion interface{}
 // StaticPodNamespaceListerExpansion allows custom methods to be added to
 // StaticPodNamespaceLister.
 type StaticPodNamespaceListerExpansion interface{}
+
+// VLANSubnetListerExpansion allows custom methods to be added to
+// VLANSubnetLister.
+type VLANSubnetListerExpansion interface{}
+
+// VLANSubnetNamespaceListerExpansion allows custom methods to be added to
+// VLANSubnetNamespaceLister.
+type VLANSubnetNamespaceListerExpansion interface{}
