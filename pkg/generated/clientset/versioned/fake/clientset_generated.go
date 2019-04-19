@@ -19,9 +19,9 @@ limitations under the License.
 package fake
 
 import (
-	clientset "github.com/wardenlym/static-pod-controller/pkg/generated/clientset/versioned"
-	staticmacvlanv1 "github.com/wardenlym/static-pod-controller/pkg/generated/clientset/versioned/typed/staticmacvlan/v1"
-	fakestaticmacvlanv1 "github.com/wardenlym/static-pod-controller/pkg/generated/clientset/versioned/typed/staticmacvlan/v1/fake"
+	clientset "github.com/cnrancher/static-pod-controller/pkg/generated/clientset/versioned"
+	staticmacvlanv1 "github.com/cnrancher/static-pod-controller/pkg/generated/clientset/versioned/typed/staticmacvlan/v1"
+	fakestaticmacvlanv1 "github.com/cnrancher/static-pod-controller/pkg/generated/clientset/versioned/typed/staticmacvlan/v1/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"

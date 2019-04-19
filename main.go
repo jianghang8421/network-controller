@@ -14,9 +14,9 @@ import (
 	// Uncomment the following line to load the gcp plugin (only required to authenticate against GKE clusters).
 	// _ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 
-	clientset "github.com/wardenlym/static-pod-controller/pkg/generated/clientset/versioned"
-	informers "github.com/wardenlym/static-pod-controller/pkg/generated/informers/externalversions"
-	"github.com/wardenlym/static-pod-controller/pkg/signals"
+	clientset "github.com/cnrancher/static-pod-controller/pkg/generated/clientset/versioned"
+	informers "github.com/cnrancher/static-pod-controller/pkg/generated/informers/externalversions"
+	"github.com/cnrancher/static-pod-controller/pkg/signals"
 )
 
 var (

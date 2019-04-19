@@ -21,8 +21,8 @@ package v1
 import (
 	"time"
 
-	scheme "github.com/wardenlym/static-pod-controller/pkg/generated/clientset/versioned/scheme"
-	v1 "github.com/wardenlym/static-pod-controller/types/apis/staticmacvlan/v1"
+	scheme "github.com/cnrancher/static-pod-controller/pkg/generated/clientset/versioned/scheme"
+	v1 "github.com/cnrancher/static-pod-controller/types/apis/staticmacvlan/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	types "k8s.io/apimachinery/pkg/types"
 	watch "k8s.io/apimachinery/pkg/watch"

@@ -18,12 +18,12 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog"
 
-	"github.com/wardenlym/static-pod-controller/cidr"
-	clientset "github.com/wardenlym/static-pod-controller/pkg/generated/clientset/versioned"
-	staticmacvlanscheme "github.com/wardenlym/static-pod-controller/pkg/generated/clientset/versioned/scheme"
-	informers "github.com/wardenlym/static-pod-controller/pkg/generated/informers/externalversions/staticmacvlan/v1"
-	listers "github.com/wardenlym/static-pod-controller/pkg/generated/listers/staticmacvlan/v1"
-	staticmacvlanv1 "github.com/wardenlym/static-pod-controller/types/apis/staticmacvlan/v1"
+	"github.com/cnrancher/static-pod-controller/cidr"
+	clientset "github.com/cnrancher/static-pod-controller/pkg/generated/clientset/versioned"
+	staticmacvlanscheme "github.com/cnrancher/static-pod-controller/pkg/generated/clientset/versioned/scheme"
+	informers "github.com/cnrancher/static-pod-controller/pkg/generated/informers/externalversions/staticmacvlan/v1"
+	listers "github.com/cnrancher/static-pod-controller/pkg/generated/listers/staticmacvlan/v1"
+	staticmacvlanv1 "github.com/cnrancher/static-pod-controller/types/apis/staticmacvlan/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 

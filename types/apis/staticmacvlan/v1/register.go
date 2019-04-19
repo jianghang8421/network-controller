@@ -5,7 +5,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	staticmacvlan "github.com/wardenlym/static-pod-controller/types/apis/staticmacvlan"
+	staticmacvlan "github.com/cnrancher/static-pod-controller/types/apis/staticmacvlan"
 )
 
 // SchemeGroupVersion is group version used to register these objects

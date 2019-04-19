@@ -29,9 +29,9 @@ clean:
 	rm -rf bin/ dist/
 
 image:
-	docker build -f package/Dockerfile -t wardenlym/static-pod-controller .
-	docker push wardenlym/static-pod-controller
-	docker build -f package/Dockerfile -t wardenlym/static-pod-controller:v0.1.0 .
-	docker push wardenlym/static-pod-controller:v0.1.0
+	docker build -f package/Dockerfile -t cnrancher/static-pod-controller .
+	docker push cnrancher/static-pod-controller
+	docker build -f package/Dockerfile -t cnrancher/static-pod-controller:v0.1.0 .
+	docker push cnrancher/static-pod-controller:v0.1.0
 
 

@@ -23,9 +23,9 @@ import (
 	sync "sync"
 	time "time"
 
-	versioned "github.com/wardenlym/static-pod-controller/pkg/generated/clientset/versioned"
-	internalinterfaces "github.com/wardenlym/static-pod-controller/pkg/generated/informers/externalversions/internalinterfaces"
-	staticmacvlan "github.com/wardenlym/static-pod-controller/pkg/generated/informers/externalversions/staticmacvlan"
+	versioned "github.com/cnrancher/static-pod-controller/pkg/generated/clientset/versioned"
+	internalinterfaces "github.com/cnrancher/static-pod-controller/pkg/generated/informers/externalversions/internalinterfaces"
+	staticmacvlan "github.com/cnrancher/static-pod-controller/pkg/generated/informers/externalversions/staticmacvlan"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"

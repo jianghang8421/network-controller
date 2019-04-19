@@ -19,7 +19,7 @@ limitations under the License.
 package versioned
 
 import (
-	staticmacvlanv1 "github.com/wardenlym/static-pod-controller/pkg/generated/clientset/versioned/typed/staticmacvlan/v1"
+	staticmacvlanv1 "github.com/cnrancher/static-pod-controller/pkg/generated/clientset/versioned/typed/staticmacvlan/v1"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"

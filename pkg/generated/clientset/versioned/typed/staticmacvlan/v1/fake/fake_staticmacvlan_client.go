@@ -19,7 +19,7 @@ limitations under the License.
 package fake
 
 import (
-	v1 "github.com/wardenlym/static-pod-controller/pkg/generated/clientset/versioned/typed/staticmacvlan/v1"
+	v1 "github.com/cnrancher/static-pod-controller/pkg/generated/clientset/versioned/typed/staticmacvlan/v1"
 	rest "k8s.io/client-go/rest"
 	testing "k8s.io/client-go/testing"
 )

@@ -19,8 +19,8 @@ limitations under the License.
 package staticmacvlan
 
 import (
-	internalinterfaces "github.com/wardenlym/static-pod-controller/pkg/generated/informers/externalversions/internalinterfaces"
-	v1 "github.com/wardenlym/static-pod-controller/pkg/generated/informers/externalversions/staticmacvlan/v1"
+	internalinterfaces "github.com/cnrancher/static-pod-controller/pkg/generated/informers/externalversions/internalinterfaces"
+	v1 "github.com/cnrancher/static-pod-controller/pkg/generated/informers/externalversions/staticmacvlan/v1"
 )
 
 // Interface provides access to each of this group's versions.

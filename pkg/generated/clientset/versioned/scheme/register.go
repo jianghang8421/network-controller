@@ -19,7 +19,7 @@ limitations under the License.
 package scheme
 
 import (
-	staticmacvlanv1 "github.com/wardenlym/static-pod-controller/types/apis/staticmacvlan/v1"
+	staticmacvlanv1 "github.com/cnrancher/static-pod-controller/types/apis/staticmacvlan/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"

@@ -21,10 +21,10 @@ package v1
 import (
 	time "time"
 
-	versioned "github.com/wardenlym/static-pod-controller/pkg/generated/clientset/versioned"
-	internalinterfaces "github.com/wardenlym/static-pod-controller/pkg/generated/informers/externalversions/internalinterfaces"
-	v1 "github.com/wardenlym/static-pod-controller/pkg/generated/listers/staticmacvlan/v1"
-	staticmacvlanv1 "github.com/wardenlym/static-pod-controller/types/apis/staticmacvlan/v1"
+	versioned "github.com/cnrancher/static-pod-controller/pkg/generated/clientset/versioned"
+	internalinterfaces "github.com/cnrancher/static-pod-controller/pkg/generated/informers/externalversions/internalinterfaces"
+	v1 "github.com/cnrancher/static-pod-controller/pkg/generated/listers/staticmacvlan/v1"
+	staticmacvlanv1 "github.com/cnrancher/static-pod-controller/types/apis/staticmacvlan/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	watch "k8s.io/apimachinery/pkg/watch"

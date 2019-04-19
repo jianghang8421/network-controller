@@ -19,8 +19,8 @@ limitations under the License.
 package v1
 
 import (
-	"github.com/wardenlym/static-pod-controller/pkg/generated/clientset/versioned/scheme"
-	v1 "github.com/wardenlym/static-pod-controller/types/apis/staticmacvlan/v1"
+	"github.com/cnrancher/static-pod-controller/pkg/generated/clientset/versioned/scheme"
+	v1 "github.com/cnrancher/static-pod-controller/types/apis/staticmacvlan/v1"
 	serializer "k8s.io/apimachinery/pkg/runtime/serializer"
 	rest "k8s.io/client-go/rest"
 )
