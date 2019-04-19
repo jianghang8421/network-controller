@@ -25,7 +25,7 @@ sudo ip link set eth0 promisc on
 
     quay.io/coreos/flannel:v0.10.0-amd64
     nfvpe/multus:v3.2
-    wardenlym/static-pod-controller:v0.1.0
+    cnrancher/static-pod-controller:v0.1.0
 
 ## 验证流程
 
@@ -172,7 +172,7 @@ pod-2中的自定义标识
 $ kubectl apply -f artifacts/sample/pod-2.yml
 pod/samplepod2 created
 
-# ubuntu @ ip-172-31-42-3 in ~/go/src/github.com/wardenlym/static-pod-controller on git:dev o [16:15:38]
+# ubuntu @ ip-172-31-42-3 in ~/go/src/github.com/cnrancher/static-pod-controller on git:dev o [16:15:38]
 $ kubectl exec samplepod2 -it -- ip a
 1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue qlen 1000
     link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00

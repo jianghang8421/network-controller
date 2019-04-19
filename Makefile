@@ -31,7 +31,3 @@ clean:
 image:
 	docker build -f package/Dockerfile -t cnrancher/static-pod-controller .
 	docker push cnrancher/static-pod-controller
-	docker build -f package/Dockerfile -t cnrancher/static-pod-controller:v0.1.0 .
-	docker push cnrancher/static-pod-controller:v0.1.0
-
-
