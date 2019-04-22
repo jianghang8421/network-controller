@@ -164,7 +164,7 @@ func (c *Controller) onPodAdd(obj interface{}) {
 	podNamespace := pod.GetNamespace()
 
 	// TODO: use kube-system or cattle-system namesapce
-	vlan, err := c.staticmacvlanclientset.StaticmacvlanV1().VLANSubnets(podNamespace).Get(vlansubnetName, metav1.GetOptions{})
+	vlan, err := c.staticmacvlanclientset.StaticmacvlanV1().VLANSubnets("kube-system").Get(vlansubnetName, metav1.GetOptions{})
 	if err != nil {
 		fmt.Printf("Get VLANSubnet error: %s %s\n", vlansubnetName, err)
 		return
