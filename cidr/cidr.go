@@ -1,6 +1,7 @@
 package cidr
 
 import (
+	"fmt"
 	"math/rand"
 	"net"
 	"strings"
@@ -32,7 +33,7 @@ func Hosts(cidr string) ([]string, error) {
 		ips = append(ips, ip.String())
 	}
 	// remove network address and broadcast address
-	return ips[1 : len(ips)-1], nil
+	return ips[2 : len(ips)-1], nil
 }
 
 func RandomIP(cidr string) (string, error) {
@@ -52,4 +53,55 @@ func RandomCIDR(cidr string) (string, error) {
 	i := rand.Intn(len(ips))
 	a := strings.Split(cidr, "/")
 	return ips[i] + "/" + a[1], nil
+}
+
+func AllocateCIDR(cidr string, used []string) (string, error) {
+
+	hosts, err := Hosts(cidr)
+	if err != nil {
+		return "", err
+	}
+
+	ips := diff(hosts, used)
+	if len(ips) == 0 {
+		return "", fmt.Errorf("no more useable cidr in %s", cidr)
+	}
+
+	i := rand.Intn(len(ips))
+	a := strings.Split(cidr, "/")
+	return ips[i] + "/" + a[1], nil
+}
+
+func diff(slice1 []string, slice2 []string) []string {
+	var diff []string
+	for i := 0; i < 2; i++ {
+		for _, s1 := range slice1 {
+			found := false
+			for _, s2 := range slice2 {
+				if s1 == s2 {
+					found = true
+					break
+				}
+			}
+			if !found {
+				diff = append(diff, s1)
+			}
+		}
+		if i == 0 {
+			slice1, slice2 = slice2, slice1
+		}
+	}
+
+	return diff
+}
+
+func CalcGatewayByCIDR(cidr string) (string, error) {
+	ip, ipnet, err := net.ParseCIDR(cidr)
+	if err != nil {
+		return "", err
+	}
+
+	ip = ip.Mask(ipnet.Mask)
+	inc(ip)
+	return ip.String(), nil
 }

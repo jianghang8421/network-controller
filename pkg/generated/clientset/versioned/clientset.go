@@ -19,7 +19,7 @@ limitations under the License.
 package versioned
 
 import (
-	staticmacvlanv1 "github.com/cnrancher/static-pod-controller/pkg/generated/clientset/versioned/typed/staticmacvlan/v1"
+	macvlanv1 "github.com/cnrancher/network-controller/pkg/generated/clientset/versioned/typed/macvlan/v1"
 	discovery "k8s.io/client-go/discovery"
 	rest "k8s.io/client-go/rest"
 	flowcontrol "k8s.io/client-go/util/flowcontrol"
@@ -27,27 +27,27 @@ import (
 
 type Interface interface {
 	Discovery() discovery.DiscoveryInterface
-	StaticmacvlanV1() staticmacvlanv1.StaticmacvlanV1Interface
+	MacvlanV1() macvlanv1.MacvlanV1Interface
 	// Deprecated: please explicitly pick a version if possible.
-	Staticmacvlan() staticmacvlanv1.StaticmacvlanV1Interface
+	Macvlan() macvlanv1.MacvlanV1Interface
 }
 
 // Clientset contains the clients for groups. Each group has exactly one
 // version included in a Clientset.
 type Clientset struct {
 	*discovery.DiscoveryClient
-	staticmacvlanV1 *staticmacvlanv1.StaticmacvlanV1Client
+	macvlanV1 *macvlanv1.MacvlanV1Client
 }
 
-// StaticmacvlanV1 retrieves the StaticmacvlanV1Client
-func (c *Clientset) StaticmacvlanV1() staticmacvlanv1.StaticmacvlanV1Interface {
-	return c.staticmacvlanV1
+// MacvlanV1 retrieves the MacvlanV1Client
+func (c *Clientset) MacvlanV1() macvlanv1.MacvlanV1Interface {
+	return c.macvlanV1
 }
 
-// Deprecated: Staticmacvlan retrieves the default version of StaticmacvlanClient.
+// Deprecated: Macvlan retrieves the default version of MacvlanClient.
 // Please explicitly pick a version.
-func (c *Clientset) Staticmacvlan() staticmacvlanv1.StaticmacvlanV1Interface {
-	return c.staticmacvlanV1
+func (c *Clientset) Macvlan() macvlanv1.MacvlanV1Interface {
+	return c.macvlanV1
 }
 
 // Discovery retrieves the DiscoveryClient
@@ -66,7 +66,7 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 	}
 	var cs Clientset
 	var err error
-	cs.staticmacvlanV1, err = staticmacvlanv1.NewForConfig(&configShallowCopy)
+	cs.macvlanV1, err = macvlanv1.NewForConfig(&configShallowCopy)
 	if err != nil {
 		return nil, err
 	}
@@ -82,7 +82,7 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 // panics if there is an error in the config.
 func NewForConfigOrDie(c *rest.Config) *Clientset {
 	var cs Clientset
-	cs.staticmacvlanV1 = staticmacvlanv1.NewForConfigOrDie(c)
+	cs.macvlanV1 = macvlanv1.NewForConfigOrDie(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClientForConfigOrDie(c)
 	return &cs
@@ -91,7 +91,7 @@ func NewForConfigOrDie(c *rest.Config) *Clientset {
 // New creates a new Clientset for the given RESTClient.
 func New(c rest.Interface) *Clientset {
 	var cs Clientset
-	cs.staticmacvlanV1 = staticmacvlanv1.New(c)
+	cs.macvlanV1 = macvlanv1.New(c)
 
 	cs.DiscoveryClient = discovery.NewDiscoveryClient(c)
 	return &cs

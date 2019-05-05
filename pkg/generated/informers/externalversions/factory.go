@@ -23,9 +23,9 @@ import (
 	sync "sync"
 	time "time"
 
-	versioned "github.com/cnrancher/static-pod-controller/pkg/generated/clientset/versioned"
-	internalinterfaces "github.com/cnrancher/static-pod-controller/pkg/generated/informers/externalversions/internalinterfaces"
-	staticmacvlan "github.com/cnrancher/static-pod-controller/pkg/generated/informers/externalversions/staticmacvlan"
+	versioned "github.com/cnrancher/network-controller/pkg/generated/clientset/versioned"
+	internalinterfaces "github.com/cnrancher/network-controller/pkg/generated/informers/externalversions/internalinterfaces"
+	macvlan "github.com/cnrancher/network-controller/pkg/generated/informers/externalversions/macvlan"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
@@ -172,9 +172,9 @@ type SharedInformerFactory interface {
 	ForResource(resource schema.GroupVersionResource) (GenericInformer, error)
 	WaitForCacheSync(stopCh <-chan struct{}) map[reflect.Type]bool
 
-	Staticmacvlan() staticmacvlan.Interface
+	Macvlan() macvlan.Interface
 }
 
-func (f *sharedInformerFactory) Staticmacvlan() staticmacvlan.Interface {
-	return staticmacvlan.New(f, f.namespace, f.tweakListOptions)
+func (f *sharedInformerFactory) Macvlan() macvlan.Interface {
+	return macvlan.New(f, f.namespace, f.tweakListOptions)
 }

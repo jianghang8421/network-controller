@@ -19,9 +19,9 @@ limitations under the License.
 package fake
 
 import (
-	clientset "github.com/cnrancher/static-pod-controller/pkg/generated/clientset/versioned"
-	staticmacvlanv1 "github.com/cnrancher/static-pod-controller/pkg/generated/clientset/versioned/typed/staticmacvlan/v1"
-	fakestaticmacvlanv1 "github.com/cnrancher/static-pod-controller/pkg/generated/clientset/versioned/typed/staticmacvlan/v1/fake"
+	clientset "github.com/cnrancher/network-controller/pkg/generated/clientset/versioned"
+	macvlanv1 "github.com/cnrancher/network-controller/pkg/generated/clientset/versioned/typed/macvlan/v1"
+	fakemacvlanv1 "github.com/cnrancher/network-controller/pkg/generated/clientset/versioned/typed/macvlan/v1/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"
@@ -71,12 +71,12 @@ func (c *Clientset) Discovery() discovery.DiscoveryInterface {
 
 var _ clientset.Interface = &Clientset{}
 
-// StaticmacvlanV1 retrieves the StaticmacvlanV1Client
-func (c *Clientset) StaticmacvlanV1() staticmacvlanv1.StaticmacvlanV1Interface {
-	return &fakestaticmacvlanv1.FakeStaticmacvlanV1{Fake: &c.Fake}
+// MacvlanV1 retrieves the MacvlanV1Client
+func (c *Clientset) MacvlanV1() macvlanv1.MacvlanV1Interface {
+	return &fakemacvlanv1.FakeMacvlanV1{Fake: &c.Fake}
 }
 
-// Staticmacvlan retrieves the StaticmacvlanV1Client
-func (c *Clientset) Staticmacvlan() staticmacvlanv1.StaticmacvlanV1Interface {
-	return &fakestaticmacvlanv1.FakeStaticmacvlanV1{Fake: &c.Fake}
+// Macvlan retrieves the MacvlanV1Client
+func (c *Clientset) Macvlan() macvlanv1.MacvlanV1Interface {
+	return &fakemacvlanv1.FakeMacvlanV1{Fake: &c.Fake}
 }

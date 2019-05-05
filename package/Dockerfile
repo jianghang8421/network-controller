@@ -1,3 +1,3 @@
 FROM alpine
-COPY bin/static-pod-controller /usr/bin/
-CMD ["static-pod-controller"]
+COPY bin/network-controller /usr/bin/
+CMD ["network-controller"]

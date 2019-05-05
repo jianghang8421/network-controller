@@ -2,8 +2,10 @@ package main
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
+	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -18,27 +20,27 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog"
 
-	"github.com/cnrancher/static-pod-controller/cidr"
-	clientset "github.com/cnrancher/static-pod-controller/pkg/generated/clientset/versioned"
-	staticmacvlanscheme "github.com/cnrancher/static-pod-controller/pkg/generated/clientset/versioned/scheme"
-	informers "github.com/cnrancher/static-pod-controller/pkg/generated/informers/externalversions/staticmacvlan/v1"
-	listers "github.com/cnrancher/static-pod-controller/pkg/generated/listers/staticmacvlan/v1"
-	staticmacvlanv1 "github.com/cnrancher/static-pod-controller/types/apis/staticmacvlan/v1"
+	"github.com/cnrancher/network-controller/cidr"
+	clientset "github.com/cnrancher/network-controller/pkg/generated/clientset/versioned"
+	macvlanscheme "github.com/cnrancher/network-controller/pkg/generated/clientset/versioned/scheme"
+	informers "github.com/cnrancher/network-controller/pkg/generated/informers/externalversions/macvlan/v1"
+	listers "github.com/cnrancher/network-controller/pkg/generated/listers/macvlan/v1"
+	macvlanv1 "github.com/cnrancher/network-controller/types/apis/macvlan/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-const controllerAgentName = "static-pod-controller"
+const controllerAgentName = "network-controller"
 
 // Controller is the controller implementation for Foo resources
 type Controller struct {
-	kubeclientset          kubernetes.Interface
-	staticmacvlanclientset clientset.Interface
+	kubeclientset    kubernetes.Interface
+	macvlanclientset clientset.Interface
 
-	staticpodsLister listers.StaticPodLister
-	staticpodsSynced cache.InformerSynced
+	macvlanipsLister listers.MacvlanIPLister
+	macvlansSynced   cache.InformerSynced
 
-	vlansubnetsLister listers.VLANSubnetLister
-	vlansubnetsSynced cache.InformerSynced
+	MacvlanSubnetsLister listers.MacvlanSubnetLister
+	MacvlanSubnetsSynced cache.InformerSynced
 
 	podsLister corelisters.PodLister
 	podsSynced cache.InformerSynced
@@ -50,13 +52,13 @@ type Controller struct {
 // NewController returns a new sample controller
 func NewController(
 	kubeclientset kubernetes.Interface,
-	staticmacvlanclientset clientset.Interface,
+	macvlanclientset clientset.Interface,
 	deploymentInformer appsinformers.DeploymentInformer,
 	podInformer coreinformers.PodInformer,
-	staticpodInformer informers.StaticPodInformer,
-	vlansubnetInformer informers.VLANSubnetInformer) *Controller {
+	macvlanipInformer informers.MacvlanIPInformer,
+	macvlanSubnetInformer informers.MacvlanSubnetInformer) *Controller {
 
-	utilruntime.Must(staticmacvlanscheme.AddToScheme(scheme.Scheme))
+	utilruntime.Must(macvlanscheme.AddToScheme(scheme.Scheme))
 	klog.V(4).Info("Creating event broadcaster")
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartLogging(klog.Infof)
@@ -64,19 +66,19 @@ func NewController(
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: controllerAgentName})
 
 	controller := &Controller{
-		kubeclientset:          kubeclientset,
-		staticmacvlanclientset: staticmacvlanclientset,
+		kubeclientset:    kubeclientset,
+		macvlanclientset: macvlanclientset,
 
-		staticpodsLister: staticpodInformer.Lister(),
-		staticpodsSynced: staticpodInformer.Informer().HasSynced,
+		macvlanipsLister: macvlanipInformer.Lister(),
+		macvlansSynced:   macvlanipInformer.Informer().HasSynced,
 
-		vlansubnetsLister: vlansubnetInformer.Lister(),
-		vlansubnetsSynced: vlansubnetInformer.Informer().HasSynced,
+		MacvlanSubnetsLister: macvlanSubnetInformer.Lister(),
+		MacvlanSubnetsSynced: macvlanSubnetInformer.Informer().HasSynced,
 
 		podsLister: podInformer.Lister(),
 		podsSynced: podInformer.Informer().HasSynced,
 
-		workqueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "StaticPods"),
+		workqueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "network-controller"),
 		recorder:  recorder,
 	}
 
@@ -88,10 +90,8 @@ func NewController(
 		UpdateFunc: controller.onPodUpdate,
 	})
 
-	vlansubnetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    controller.onVLANSubnetAdd,
-		DeleteFunc: controller.onVLANSubnetDelete,
-		UpdateFunc: controller.onVLANSubnetUpdate,
+	macvlanSubnetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: controller.onMacvlanSubnetAdd,
 	})
 
 	return controller
@@ -110,7 +110,7 @@ func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 
 	// Wait for the caches to be synced before starting workers
 	klog.Info("Waiting for informer caches to sync")
-	if ok := cache.WaitForCacheSync(stopCh, c.podsSynced, c.staticpodsSynced); !ok {
+	if ok := cache.WaitForCacheSync(stopCh, c.podsSynced, c.macvlansSynced); !ok {
 		return fmt.Errorf("failed to wait for caches to sync")
 	}
 
@@ -138,10 +138,53 @@ func (c *Controller) runWorker() {
 // processNextWorkItem will read a single work item off the workqueue and
 // attempt to process it, by calling the syncHandler.
 func (c *Controller) processNextWorkItem() bool {
-	_, shutdown := c.workqueue.Get()
+	obj, shutdown := c.workqueue.Get()
 
 	if shutdown {
 		return false
+	}
+
+	// We wrap this block in a func so we can defer c.workqueue.Done.
+	err := func(obj interface{}) error {
+		// We call Done here so the workqueue knows we have finished
+		// processing this item. We also must remember to call Forget if we
+		// do not want this work item being re-queued. For example, we do
+		// not call Forget if a transient error occurs, instead the item is
+		// put back on the workqueue and attempted again after a back-off
+		// period.
+		defer c.workqueue.Done(obj)
+		var key string
+		var ok bool
+		// We expect strings to come off the workqueue. These are of the
+		// form namespace/name. We do this as the delayed nature of the
+		// workqueue means the items in the informer cache may actually be
+		// more up to date that when the item was initially put onto the
+		// workqueue.
+		if key, ok = obj.(string); !ok {
+			// As the item in the workqueue is actually invalid, we call
+			// Forget here else we'd go into a loop of attempting to
+			// process a work item that is invalid.
+			c.workqueue.Forget(obj)
+			utilruntime.HandleError(fmt.Errorf("expected string in workqueue but got %#v", obj))
+			return nil
+		}
+		// Run the syncHandler, passing it the namespace/name string of the
+		// Foo resource to be synced.
+		if err := c.syncHandler(key); err != nil {
+			// Put the item back on the workqueue to handle any transient errors.
+			c.workqueue.AddRateLimited(key)
+			return fmt.Errorf("error syncing '%s': %s, requeuing", key, err.Error())
+		}
+		// Finally, if no error occurs we Forget this item so it does not
+		// get queued again until another change happens.
+		c.workqueue.Forget(obj)
+		klog.Infof("Successfully synced '%s'", key)
+		return nil
+	}(obj)
+
+	if err != nil {
+		utilruntime.HandleError(err)
+		return true
 	}
 
 	return true
@@ -150,12 +193,12 @@ func (c *Controller) processNextWorkItem() bool {
 func (c *Controller) onPodAdd(obj interface{}) {
 	pod := obj.(*corev1.Pod)
 
-	annotationIP, exist := pod.GetAnnotations()["static-ip"]
+	annotationIP, exist := pod.GetAnnotations()["cidr"]
 	if !exist {
 		return
 	}
 
-	vlansubnetName, exist := pod.GetAnnotations()["vlan"]
+	MacvlanSubnetName, exist := pod.GetAnnotations()["subnet"]
 	if !exist {
 		return
 	}
@@ -163,42 +206,61 @@ func (c *Controller) onPodAdd(obj interface{}) {
 	podName := pod.GetName()
 	podNamespace := pod.GetNamespace()
 
-	// TODO: use kube-system or cattle-system namesapce
-	vlan, err := c.staticmacvlanclientset.StaticmacvlanV1().VLANSubnets("kube-system").Get(vlansubnetName, metav1.GetOptions{})
+	vlan, err := c.macvlanclientset.MacvlanV1().MacvlanSubnets("kube-system").Get(MacvlanSubnetName, metav1.GetOptions{})
 	if err != nil {
-		fmt.Printf("Get VLANSubnet error: %s %s\n", vlansubnetName, err)
+		fmt.Printf("Get MacvlanSubnet error: %s %s\n", MacvlanSubnetName, err)
 		return
 	}
 
 	if annotationIP == "auto" {
-		annotationIP, err = cidr.RandomCIDR(vlan.Spec.CIDR)
+		ips, err := c.macvlanclientset.MacvlanV1().MacvlanIPs(podName).List(metav1.ListOptions{})
+		if err != nil {
+			fmt.Printf("list macvlanips error  %s \n", err)
+			return
+		}
+
+		usedCidrs := []string{}
+		for _, item := range ips.Items {
+			if item.Spec.Subnet == vlan.Name {
+				ip := strings.Split(item.Spec.CIDR, "/")
+				if len(ip) == 2 {
+					usedCidrs = append(usedCidrs, ip[0])
+				}
+
+			}
+		}
+
+		annotationIP, err = cidr.AllocateCIDR(vlan.Spec.CIDR, usedCidrs)
 		if err != nil {
 			fmt.Printf("allocteIPinVLAN  %s  cidr(%s)  ip(%s)\n", err, vlan.Spec.CIDR, annotationIP)
 			return
 		}
 	}
 
-	annotationMac := pod.GetAnnotations()["static-mac"]
+	annotationMac := pod.GetAnnotations()["mac"]
 
 	fmt.Printf("Pod creating: podName %s - annotationIP %s \n", podName, annotationIP)
 
-	staticpod := &staticmacvlanv1.StaticPod{
+	macvlanip := &macvlanv1.MacvlanIP{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      podName,
 			Namespace: podNamespace,
+			Labels: map[string]string{
+				"subnet": vlan.Name,
+			},
 		},
-		Spec: staticmacvlanv1.StaticPodSpec{
-			IP:    annotationIP,
-			MAC:   annotationMac,
-			PodID: string(pod.GetUID()),
-			VLAN:  vlan.Name,
+		Spec: macvlanv1.MacvlanIPSpec{
+			CIDR:   annotationIP,
+			MAC:    annotationMac,
+			PodID:  string(pod.GetUID()),
+			Subnet: vlan.Name,
 		},
 	}
-	staticpodInfo, err := c.staticmacvlanclientset.StaticmacvlanV1().StaticPods(podNamespace).Create(staticpod)
+	macvlanipInfo, err := c.macvlanclientset.MacvlanV1().MacvlanIPs(podNamespace).Create(macvlanip)
 	if err != nil {
-		fmt.Printf("StaticPods create error: %s %s", err, staticpodInfo.Name)
+		fmt.Printf("macvlanips create error: %s %s\n", err, macvlanipInfo.Name)
 	} else {
-		fmt.Printf("StaticPods created : %s %s", staticpodInfo.Name, staticpodInfo.Spec.IP)
+		fmt.Printf("macvlanips created : %s %s\n", macvlanipInfo.Name, macvlanipInfo.Spec.CIDR)
 	}
 }
 
@@ -209,7 +271,7 @@ func (c *Controller) onPodDelete(obj interface{}) {
 
 	pod := obj.(*corev1.Pod)
 
-	annotationIP, exist := pod.GetAnnotations()["static-ip"]
+	annotationIP, exist := pod.GetAnnotations()["cidr"]
 	if !exist {
 		return
 	}
@@ -219,22 +281,86 @@ func (c *Controller) onPodDelete(obj interface{}) {
 
 	fmt.Printf("Pod delete: podName %s - annotationIP %s \n", podName, annotationIP)
 
-	err := c.staticmacvlanclientset.StaticmacvlanV1().StaticPods(podNamespace).Delete(podName, &metav1.DeleteOptions{})
+	err := c.macvlanclientset.MacvlanV1().MacvlanIPs(podNamespace).Delete(podName, &metav1.DeleteOptions{})
 	if err != nil {
-		fmt.Printf("StaticPods delete error: %s %s", err, podName)
+		fmt.Printf("macvlanips delete error: %s %s\n", err, podName)
 	} else {
-		fmt.Printf("StaticPods deleted : %s", podName)
+		fmt.Printf("macvlanips deleted : %s\n", podName)
 	}
 }
 
-func (c *Controller) onVLANSubnetAdd(obj interface{}) {
+func (c *Controller) enqueuePod(action string, obj *corev1.Pod) {
+	var key string
+	var err error
+	if key, err = cache.MetaNamespaceKeyFunc(obj); err != nil {
+		utilruntime.HandleError(err)
+		return
+	}
+	key = action + "/" + key
+	c.workqueue.Add(key)
+}
+
+func (c *Controller) onMacvlanSubnetAdd(obj interface{}) {
+
+	subnet, ok := obj.(*macvlanv1.MacvlanSubnet)
+	if !ok {
+		return
+	}
+	if subnet.Labels == nil {
+		subnet.Labels = map[string]string{}
+	}
+	subnet.Labels["master"] = subnet.Spec.Master
+	subnet.Labels["vlan"] = fmt.Sprint(subnet.Spec.VLAN)
+	subnet.Labels["mode"] = subnet.Spec.Mode
+
+	if subnet.Spec.Gateway == "" {
+		var err error
+		subnet.Spec.Gateway, err = cidr.CalcGatewayByCIDR(subnet.Spec.CIDR)
+		if err != nil {
+			log.Errorf("CalcGatewayByCIDR error : %v %s", err, subnet.Spec.CIDR)
+		}
+	}
+
+	_, err := c.macvlanclientset.MacvlanV1().MacvlanSubnets("kube-system").Create(subnet)
+	if err != nil {
+		log.Errorf("MacvlanSubnets create : %v %s %v", err, subnet.Name, subnet)
+	}
+}
+
+func splitActionMetaNamespaceKey(key string) (string, string, string, error) {
+	parts := strings.Split(key, "/")
+	switch len(parts) {
+	case 2:
+		// name only, no namespace
+		return parts[0], "", parts[1], nil
+	case 3:
+		// namespace and name
+		return parts[0], parts[1], parts[2], nil
+	}
+
+	return "", "", "", fmt.Errorf("unexpected action key format: %q", key)
 
 }
 
-func (c *Controller) onVLANSubnetUpdate(old, new interface{}) {
+// syncHandler compares the actual state with the desired, and attempts to
+// converge the two. It then updates the Status block of the Foo resource
+// with the current status of the resource.
+func (c *Controller) syncHandler(key string) error {
 
-}
+	// Convert the namespace/name string into a distinct namespace and name
+	action, namespace, name, err := splitActionMetaNamespaceKey(key)
+	if err != nil {
+		utilruntime.HandleError(fmt.Errorf("invalid resource key: %s", key))
+		return nil
+	}
 
-func (c *Controller) onVLANSubnetDelete(obj interface{}) {
-
+	switch action {
+	case "add":
+		log.Infof("add    %s %s", namespace, name)
+	case "delete":
+		log.Infof("delete    %s %s", namespace, name)
+	case "update":
+		log.Infof("update    %s %s", namespace, name)
+	}
+	return nil
 }

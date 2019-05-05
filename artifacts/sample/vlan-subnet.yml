@@ -1,10 +1,12 @@
 ---
-apiVersion: "staticmacvlan.rancher.com/v1"
-kind: VLANSubnet
+apiVersion: "macvlan.cluster.cattle.io/v1"
+kind: MacvlanSubnet
 metadata:
-  name: mv1.100
+  name: eth0.100
   namespace: kube-system
 spec:
   master: "eth0"
+  vlan: 100
   cidr: "192.168.1.0/24"
+  mode: "bridge"
 ---

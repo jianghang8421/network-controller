@@ -26,19 +26,17 @@ apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
   name: multus
 rules:
-  - apiGroups: ["k8s.cni.cncf.io"]
+  - apiGroups: ["k8s.cni.cncf.io", "macvlan.cluster.cattle.io"]
     resources:
       - '*'
     verbs:
       - '*'
-  - apiGroups:
-      - ""
+  - apiGroups: [""]
     resources:
       - pods
       - pods/status
     verbs:
-      - get
-      - update
+      - '*'
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1beta1

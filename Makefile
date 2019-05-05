@@ -24,10 +24,10 @@ deps: trash
 
 dev:
 	mkdir -p bin
-	CGO_ENABLED=0 go build -o bin/static-pod-controller
+	CGO_ENABLED=0 go build -o bin/network-controller
 clean:
 	rm -rf bin/ dist/
 
 image:
-	docker build -f package/Dockerfile -t cnrancher/static-pod-controller .
-	docker push cnrancher/static-pod-controller
+	docker build -f package/Dockerfile -t cnrancher/network-controller:v0.2.0 .
+	docker push cnrancher/network-controller:v0.2.0

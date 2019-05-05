@@ -5,12 +5,12 @@ source $(dirname $0)/version
 
 cd $(dirname $0)/..
 
-if [ ! -e bin/static-pod-controller ]; then
+if [ ! -e bin/network-controller ]; then
     ./scripts/build
 fi
 
 mkdir -p dist/artifacts
 cd bin/
-tar cvzf ../dist/artifacts/static-pod-controller-${VERSION}.tar.gz .
+tar cvzf ../dist/artifacts/network-controller-${VERSION}.tar.gz .
 
-echo "Built static-pod-controller-${VERSION}.tar.gz"
+echo "Built network-controller-${VERSION}.tar.gz"

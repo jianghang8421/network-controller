@@ -7,8 +7,8 @@ metadata:
     app: samplepod
   annotations:
     k8s.v1.cni.cncf.io/networks: static-macvlan-cni
-    static-ip: auto
-    vlan: mv1.100
+    cidr: auto
+    subnet: eth0.100
 spec:
   containers:
   - image: busybox

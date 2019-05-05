@@ -19,7 +19,7 @@ limitations under the License.
 package fake
 
 import (
-	staticmacvlanv1 "github.com/cnrancher/static-pod-controller/types/apis/staticmacvlan/v1"
+	macvlanv1 "github.com/cnrancher/network-controller/types/apis/macvlan/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
@@ -31,7 +31,7 @@ var scheme = runtime.NewScheme()
 var codecs = serializer.NewCodecFactory(scheme)
 var parameterCodec = runtime.NewParameterCodec(scheme)
 var localSchemeBuilder = runtime.SchemeBuilder{
-	staticmacvlanv1.AddToScheme,
+	macvlanv1.AddToScheme,
 }
 
 // AddToScheme adds all types of this clientset into the given scheme. This allows composition

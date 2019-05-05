@@ -17,7 +17,7 @@ spec:
       annotations:
         k8s.v1.cni.cncf.io/networks: static-macvlan-cni
         static-ip: auto
-        vlan: mv1.100
+        vlan: eth0.100
     spec:
       containers:
       - name: nginx
