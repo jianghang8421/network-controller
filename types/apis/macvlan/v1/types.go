@@ -48,11 +48,17 @@ type MacvlanSubnet struct {
 
 // MacvlanSubnetSpec is the spec for a MacvlanSubnet resource
 type MacvlanSubnetSpec struct {
-	Master  string `json:"master"`
-	VLAN    int    `json:"vlan"`
-	CIDR    string `json:"cidr"`
-	Mode    string `json:"mode"`
-	Gateway string `json:"gateway"`
+	Master  string    `json:"master"`
+	VLAN    int       `json:"vlan"`
+	CIDR    string    `json:"cidr"`
+	Mode    string    `json:"mode"`
+	Gateway string    `json:"gateway"`
+	Ranges  []IPRange `json:"ranges"`
+}
+
+type IPRange struct {
+	RangeStart string `json:"rangeStart"`
+	RangeEnd   string `json:"rangeEnd"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object

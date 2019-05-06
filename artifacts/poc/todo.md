@@ -1,0 +1,4 @@
+- 创建workload ，去掉podid
+- macvlan subnet ，ip range
+- 逗号分隔，pod 多个ip 多个mac
+- pod update
