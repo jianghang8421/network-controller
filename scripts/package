@@ -9,8 +9,4 @@ if [ ! -e bin/network-controller ]; then
     ./scripts/build
 fi
 
-mkdir -p dist/artifacts
-cd bin/
-tar cvzf ../dist/artifacts/network-controller-${VERSION}.tar.gz .
-
-echo "Built network-controller-${VERSION}.tar.gz"
+docker build -f package/Dockerfile -t cnrancher/network-controller .
