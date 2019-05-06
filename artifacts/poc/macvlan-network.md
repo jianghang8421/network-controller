@@ -1,67 +1,56 @@
 ## macvlan network 功能说明文档
 
-# create a cluster in rancher-ui using macvlan via network addons
+- 主机设置
+
+关闭swap
+
+为支持macvlan的网卡设备开启混杂模式
+
+```
+swapoff -a
+ip link set eth0 promisc on
+```
+
+- 下载镜像
+
+```
+docker pull cnrancher/rancher:v2.2.2-macvlan
+```
+
+- 创建集群
+
+选择 添加集群 - Custom
+
+选择v1.14.1版本的k8s
+
+配置好其他选项后，点选"编辑YAML"，将其中的 network/plugin 字段修改为none，并添加addons如下：
 
 ```
 network: 
   plugin: "none"
 
 addons_include:
-  - https://raw.githubusercontent.com/cnrancher/network-controller/v0.2.0-dev/artifacts/multus-daemonset.yml
-  - https://raw.githubusercontent.com/cnrancher/network-controller/v0.2.0-dev/artifacts/network-cni-daemonset.yml
-  - https://raw.githubusercontent.com/cnrancher/network-controller/v0.2.0-dev/artifacts/flannel-daemonset.yml
-  - https://raw.githubusercontent.com/cnrancher/network-controller/v0.2.0-dev/artifacts/network-controller.yml
+  - https://raw.githubusercontent.com/cnrancher/network-controller/v0.2.0/artifacts/multus-daemonset.yml
+  - https://raw.githubusercontent.com/cnrancher/network-controller/v0.2.0/artifacts/network-cni-daemonset.yml
+  - https://raw.githubusercontent.com/cnrancher/network-controller/v0.2.0/artifacts/flannel-daemonset.yml
+  - https://raw.githubusercontent.com/cnrancher/network-controller/v0.2.0/artifacts/network-controller.yml
 
 ```
 
+下一步，之后等待集群创建完成。
 
+- 创建MacvlanSubnet资源
 
-```
-addon_job_timeout: 30
-authentication: 
-  strategy: "x509"
-ignore_docker_version: true
+在集群-扁平网络-创建MacvlanSubnet
 
-ingress: 
-  provider: "nginx"
-kubernetes_version: "v1.14.1-rancher1-1"
-monitoring: 
-  provider: "metrics-server"
+配置子网属性
 
-network: 
-  plugin: "none"
+- 创建workload
 
-addons_include:
-  - https://raw.githubusercontent.com/cnrancher/network-controller/v0.2.0-dev/artifacts/multus-daemonset.yml
-  - https://raw.githubusercontent.com/cnrancher/network-controller/v0.2.0-dev/artifacts/network-cni-daemonset.yml
-  - https://raw.githubusercontent.com/cnrancher/network-controller/v0.2.0-dev/artifacts/flannel-daemonset.yml
-  - https://raw.githubusercontent.com/cnrancher/network-controller/v0.2.0-dev/artifacts/network-controller.yml
+在创建工作负载-高级-启用扁平网络
 
-services: 
-  etcd: 
-    backup_config: 
-      enabled: true
-      interval_hours: 12
-      retention: 6
-    creation: "12h"
-    extra_args: 
-      heartbeat-interval: 500
-      election-timeout: 5000
-    retention: "72h"
-    snapshot: false
-  kube-api: 
-    always_pull_images: false
-    pod_security_policy: false
-    service_node_port_range: "30000-32767"
-ssh_agent_auth: false
-# 
-#   # Rancher Config
-# 
-docker_root_dir: "/var/lib/docker"
-enable_cluster_alerting: false
-enable_cluster_monitoring: false
-enable_network_policy: false
-local_cluster_auth_endpoint: 
-  enabled: true
-name: "test"
-```
+中设定静态ip或者mac，当不指定时，为自动分配模式
+
+- 测试
+
+测试同一vlan的连通性，测试不通vlan pod的连通性
