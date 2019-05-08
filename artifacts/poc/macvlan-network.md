@@ -1,27 +1,36 @@
 ## macvlan network 功能说明文档
 
-- 主机设置
+### 主机设置
 
 关闭swap
 
-为支持macvlan的网卡设备开启混杂模式
+为支持macvlan的网卡设备开启混杂模式，请替换eth0：
 
 ```
 swapoff -a
 ip link set eth0 promisc on
 ```
 
-- 下载镜像
+### 下载镜像
+
+server请下载：
 
 ```
 docker pull cnrancher/rancher:v2.2.2-macvlan
 ```
 
-- 创建集群
+agent请下载：
 
-选择 添加集群 - Custom
+```
+docker pull rancher/rancher-agent:v2.2.2
+docker tag rancher/rancher-agent:v2.2.2 cnrancher/rancher-agent:v2.2.2-macvlan
+```
 
-选择v1.14.1版本的k8s
+### 创建集群
+
+选择 **添加集群 - Custom**
+
+选择v1.14.1版本的k8s，其他k8s版本兼容性还在测试中。
 
 配置好其他选项后，点选"编辑YAML"，将其中的 network/plugin 字段修改为none，并添加addons如下：
 
@@ -37,20 +46,47 @@ addons_include:
 
 ```
 
+请注意，如果主机存在多个网卡，有时需要指定flannel vxlan网络的网卡链路，请调整flannel-daemonset.yml，参考如下：
+
+```
+...
+...
+      containers:
+      - name: kube-flannel
+        image: quay.io/coreos/flannel:v0.10.0-amd64
+        command:
+        - /opt/bin/flanneld
+        args:
+        - --ip-masq
+        - --kube-subnet-mgr
+        - --iface=ens4 #here
+...
+```
+
 下一步，之后等待集群创建完成。
 
-- 创建MacvlanSubnet资源
+### 创建MacvlanSubnet资源
 
 在集群-扁平网络-创建MacvlanSubnet
 
 配置子网属性
 
-- 创建workload
+### 创建workload
 
-在创建工作负载-高级-启用扁平网络
+在 **工作负载-高级-启用扁平网络** 中设定静态ip或者mac，当不指定时，为自动分配模式
 
-中设定静态ip或者mac，当不指定时，为自动分配模式
-
-- 测试
+### 测试
 
 测试同一vlan的连通性，测试不通vlan pod的连通性
+
+## FAQ
+
+### 普通用户如何使用扁平网络
+
+这里涉及到两个CRD的RBAC配置，分别是：macvlanips 和 macvlansubnets。如果一个用户作为cluster member和project member来管理扁平网络资源，可以参考如下：
+
+1. Clone Cluster Member role，添加macvlanips 和 macvlansubnets访问权限，命名为Cluster Member Macvlan
+2. Clone Project Member role，添加macvlanips 和 macvlansubnets访问权限，命名为Project Member Macvlan
+3. 在某个Cluster下添加该用户为member，并设置访问权限为Cluster Member Macvlan
+4. 某个Project下权限设置同上
+
