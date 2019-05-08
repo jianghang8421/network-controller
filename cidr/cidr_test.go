@@ -1,6 +1,7 @@
 package cidr_test
 
 import (
+	"reflect"
 	"testing"
 
 	"github.com/cnrancher/network-controller/cidr"
@@ -41,5 +42,17 @@ func Test_CalcGatewayByCIDR(t *testing.T) {
 
 	if ip != "192.168.56.1" {
 		t.Log(ip)
+	}
+}
+
+func Test_ParseIPRange(t *testing.T) {
+	ip1 := "192.168.1.100"
+	ip2 := "192.168.1.105"
+	ips, err := cidr.ParseIPRange(ip1, ip2)
+	if err != nil {
+		t.Error(err)
+	}
+	if !reflect.DeepEqual(ips, []string{"192.168.1.100", "192.168.1.101", "192.168.1.102", "192.168.1.103", "192.168.1.104", "192.168.1.105"}) {
+		t.Error(ips)
 	}
 }

@@ -1,6 +1,7 @@
 package cidr
 
 import (
+	"bytes"
 	"fmt"
 	"math/rand"
 	"net"
@@ -12,6 +13,28 @@ func init() {
 	rand.Seed(time.Now().Unix())
 }
 
+func IsInRange2(trial net.IP, lower net.IP, upper net.IP) bool {
+	if bytes.Compare(trial, lower) >= 0 && bytes.Compare(trial, upper) <= 0 {
+		return true
+	}
+	return false
+}
+
+func ParseIPRange(start, end string) ([]string, error) {
+	ip1 := net.ParseIP(start)
+	ip2 := net.ParseIP(end)
+
+	if ip1 == nil || ip2 == nil {
+		return []string{}, fmt.Errorf("ip range invalid: %v %v", start, end)
+	}
+
+	var ips []string
+	for ip := ip1; IsInRange2(ip, ip1, ip2); inc(ip) {
+		ips = append(ips, ip.String())
+	}
+	return ips, nil
+}
+
 //  http://play.golang.org/p/m8TNTtygK0
 func inc(ip net.IP) {
 	for j := len(ip) - 1; j >= 0; j-- {
@@ -20,6 +43,18 @@ func inc(ip net.IP) {
 			break
 		}
 	}
+}
+
+func TryFixNetMask(ip, cidr string) (string, error) {
+	i := strings.IndexByte(ip, '/')
+	if i < 0 {
+		a := strings.Split(cidr, "/")
+		if len(a) != 2 {
+			return ip, fmt.Errorf("cidr parse error: %v", cidr)
+		}
+		return ip + "/" + a[1], nil
+	}
+	return ip, nil
 }
 
 func Hosts(cidr string) ([]string, error) {
@@ -62,14 +97,19 @@ func AllocateCIDR(cidr string, used []string) (string, error) {
 		return "", err
 	}
 
+	return AllocateInHosts(cidr, hosts, used)
+}
+
+func AllocateInHosts(cidr string, hosts []string, used []string) (string, error) {
+
 	ips := diff(hosts, used)
 	if len(ips) == 0 {
 		return "", fmt.Errorf("no more useable cidr in %s", cidr)
 	}
 
-	i := rand.Intn(len(ips))
+	// i := rand.Intn(len(ips))
 	a := strings.Split(cidr, "/")
-	return ips[i] + "/" + a[1], nil
+	return ips[0] + "/" + a[1], nil
 }
 
 func diff(slice1 []string, slice2 []string) []string {

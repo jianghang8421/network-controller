@@ -25,7 +25,7 @@ spec:
             cidr:
                  type: string
             mac:
-                 type: string              
+                 type: string          
 
   additionalPrinterColumns:
   - name: Subnet
@@ -67,6 +67,16 @@ spec:
                  type: string
             gateway:
                   type: string
+            ranges:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    rangeStart:
+                      type: string
+                    rangeEnd:
+                      type: string
+
   additionalPrinterColumns:
   - name: Master
     type: string

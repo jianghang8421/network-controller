@@ -14,6 +14,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	typedcorev1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	appslisters "k8s.io/client-go/listers/apps/v1"
 	corelisters "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
@@ -26,6 +27,7 @@ import (
 	informers "github.com/cnrancher/network-controller/pkg/generated/informers/externalversions/macvlan/v1"
 	listers "github.com/cnrancher/network-controller/pkg/generated/listers/macvlan/v1"
 	macvlanv1 "github.com/cnrancher/network-controller/types/apis/macvlan/v1"
+	v1 "github.com/cnrancher/network-controller/types/apis/macvlan/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -44,6 +46,9 @@ type Controller struct {
 
 	podsLister corelisters.PodLister
 	podsSynced cache.InformerSynced
+
+	deploymentsLister appslisters.DeploymentLister
+	deploymentsSynced cache.InformerSynced
 
 	workqueue workqueue.RateLimitingInterface
 	recorder  record.EventRecorder
@@ -77,6 +82,9 @@ func NewController(
 
 		podsLister: podInformer.Lister(),
 		podsSynced: podInformer.Informer().HasSynced,
+
+		deploymentsLister: deploymentInformer.Lister(),
+		deploymentsSynced: deploymentInformer.Informer().HasSynced,
 
 		workqueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "network-controller"),
 		recorder:  recorder,
@@ -192,8 +200,54 @@ func (c *Controller) processNextWorkItem() bool {
 
 func (c *Controller) onPodAdd(obj interface{}) {
 	pod := obj.(*corev1.Pod)
+	c.doOnPodAdd(pod)
+}
 
-	annotationIP, exist := pod.GetAnnotations()["cidr"]
+func (c *Controller) onPodUpdate(old, new interface{}) {
+
+	oldPod := old.(*corev1.Pod)
+	newPod := new.(*corev1.Pod)
+
+	if c.networkSettingChanged(oldPod, newPod) {
+		c.doOnPodDelete(oldPod)
+		c.doOnPodAdd(newPod)
+		// log.Info("do update pod")
+		// err := c.kubeclientset.CoreV1().Pods(oldPod.Namespace).Delete(oldPod.Name, &metav1.DeleteOptions{})
+		// if err != nil {
+		// 	log.Errorf("updating delete error: %v", err)
+		// 	return
+		// }
+		// _, err = c.kubeclientset.CoreV1().Pods(newPod.Namespace).Create(newPod)
+		// if err != nil {
+		// 	log.Errorf("updating create error: %v", err)
+		// 	return
+		// }
+	}
+}
+
+func (c *Controller) networkSettingChanged(old, new *corev1.Pod) bool {
+
+	switch {
+	case old.GetAnnotations()["cidr"] != new.GetAnnotations()["cidr"],
+		old.GetAnnotations()["subnet"] != new.GetAnnotations()["subnet"],
+		old.GetAnnotations()["mac"] != new.GetAnnotations()["mac"]:
+
+		log.Infof(" %s  %s", old.GetAnnotations()["cidr"], new.GetAnnotations()["cidr"])
+		log.Infof(" %s  %s", old.GetAnnotations()["subnet"], new.GetAnnotations()["subnet"])
+		log.Infof(" %s  %s", old.GetAnnotations()["mac"], new.GetAnnotations()["mac"])
+		return true
+	default:
+		return false
+	}
+}
+
+func (c *Controller) onPodDelete(obj interface{}) {
+	pod := obj.(*corev1.Pod)
+	c.doOnPodDelete(pod)
+}
+
+func (c *Controller) doOnPodAdd(pod *corev1.Pod) {
+	annotationCIDR, exist := pod.GetAnnotations()["cidr"]
 	if !exist {
 		return
 	}
@@ -208,38 +262,42 @@ func (c *Controller) onPodAdd(obj interface{}) {
 
 	vlan, err := c.macvlanclientset.MacvlanV1().MacvlanSubnets("kube-system").Get(MacvlanSubnetName, metav1.GetOptions{})
 	if err != nil {
-		fmt.Printf("Get MacvlanSubnet error: %s %s\n", MacvlanSubnetName, err)
+		log.Errorf("Get MacvlanSubnet error: %s %s\n", MacvlanSubnetName, err)
 		return
 	}
 
-	if annotationIP == "auto" {
-		ips, err := c.macvlanclientset.MacvlanV1().MacvlanIPs(podName).List(metav1.ListOptions{})
-		if err != nil {
-			fmt.Printf("list macvlanips error  %s \n", err)
-			return
-		}
+	newAnnotationCIDR, err := func() (string, error) {
+		if annotationCIDR == "auto" {
+			ips, err := c.macvlanclientset.MacvlanV1().
+				MacvlanIPs(podNamespace).
+				List(metav1.ListOptions{LabelSelector: "subnet=" + vlan.Name})
 
-		usedCidrs := []string{}
-		for _, item := range ips.Items {
-			if item.Spec.Subnet == vlan.Name {
-				ip := strings.Split(item.Spec.CIDR, "/")
-				if len(ip) == 2 {
-					usedCidrs = append(usedCidrs, ip[0])
-				}
+			if err != nil {
+				return "", fmt.Errorf("list macvlanips error  %s \n", err)
 
 			}
+			log.Infof("using ips: %v", ips)
+			usedIPs := getUsedIPsFromMacvlanips(ips)
+			log.Infof("used ips: %v", ips)
+			if len(vlan.Spec.Ranges) == 0 {
+				return cidr.AllocateCIDR(vlan.Spec.CIDR, usedIPs)
+			}
+			// allocate from range
+			hosts := CalcHostsFromRanges(vlan.Spec.Ranges)
+			return cidr.AllocateInHosts(vlan.Spec.CIDR, hosts, usedIPs)
 		}
-
-		annotationIP, err = cidr.AllocateCIDR(vlan.Spec.CIDR, usedCidrs)
-		if err != nil {
-			fmt.Printf("allocteIPinVLAN  %s  cidr(%s)  ip(%s)\n", err, vlan.Spec.CIDR, annotationIP)
-			return
-		}
+		return cidr.TryFixNetMask(annotationCIDR, vlan.Spec.CIDR)
+	}()
+	if err != nil {
+		log.Errorf("allocateCIDR error: %s %v", annotationCIDR, err)
 	}
 
 	annotationMac := pod.GetAnnotations()["mac"]
+	if annotationMac == "auto" {
+		annotationMac = ""
+	}
 
-	fmt.Printf("Pod creating: podName %s - annotationIP %s \n", podName, annotationIP)
+	log.Infof("Pod creating: podName %s - annotationIP %s", podName, newAnnotationCIDR)
 
 	macvlanip := &macvlanv1.MacvlanIP{
 		ObjectMeta: metav1.ObjectMeta{
@@ -250,7 +308,7 @@ func (c *Controller) onPodAdd(obj interface{}) {
 			},
 		},
 		Spec: macvlanv1.MacvlanIPSpec{
-			CIDR:   annotationIP,
+			CIDR:   newAnnotationCIDR,
 			MAC:    annotationMac,
 			PodID:  string(pod.GetUID()),
 			Subnet: vlan.Name,
@@ -258,19 +316,13 @@ func (c *Controller) onPodAdd(obj interface{}) {
 	}
 	macvlanipInfo, err := c.macvlanclientset.MacvlanV1().MacvlanIPs(podNamespace).Create(macvlanip)
 	if err != nil {
-		fmt.Printf("macvlanips create error: %s %s\n", err, macvlanipInfo.Name)
+		log.Errorf("macvlanips create error: %s %s", err, macvlanipInfo.Name)
 	} else {
-		fmt.Printf("macvlanips created : %s %s\n", macvlanipInfo.Name, macvlanipInfo.Spec.CIDR)
+		log.Infof("macvlanips created : %s %s", macvlanipInfo.Name, macvlanipInfo.Spec.CIDR)
 	}
 }
 
-func (c *Controller) onPodUpdate(old, new interface{}) {
-}
-
-func (c *Controller) onPodDelete(obj interface{}) {
-
-	pod := obj.(*corev1.Pod)
-
+func (c *Controller) doOnPodDelete(pod *corev1.Pod) {
 	annotationIP, exist := pod.GetAnnotations()["cidr"]
 	if !exist {
 		return
@@ -279,13 +331,13 @@ func (c *Controller) onPodDelete(obj interface{}) {
 	podName := pod.GetName()
 	podNamespace := pod.GetNamespace()
 
-	fmt.Printf("Pod delete: podName %s - annotationIP %s \n", podName, annotationIP)
+	log.Infof("Pod delete: podName %s - annotationIP %s ", podName, annotationIP)
 
 	err := c.macvlanclientset.MacvlanV1().MacvlanIPs(podNamespace).Delete(podName, &metav1.DeleteOptions{})
 	if err != nil {
-		fmt.Printf("macvlanips delete error: %s %s\n", err, podName)
+		log.Errorf("macvlanips delete error: %s %s", err, podName)
 	} else {
-		fmt.Printf("macvlanips deleted : %s\n", podName)
+		log.Infof("macvlanips deleted : %s", podName)
 	}
 }
 
@@ -306,11 +358,17 @@ func (c *Controller) onMacvlanSubnetAdd(obj interface{}) {
 	if !ok {
 		return
 	}
+
+	log.Errorf("MacvlanSubnets Add : %s %v", subnet.Name, subnet)
+
 	if subnet.Labels == nil {
 		subnet.Labels = map[string]string{}
 	}
 	subnet.Labels["master"] = subnet.Spec.Master
-	subnet.Labels["vlan"] = fmt.Sprint(subnet.Spec.VLAN)
+	if subnet.Spec.VLAN != 0 {
+		subnet.Labels["vlan"] = fmt.Sprint(subnet.Spec.VLAN)
+	}
+
 	subnet.Labels["mode"] = subnet.Spec.Mode
 
 	if subnet.Spec.Gateway == "" {
@@ -321,25 +379,10 @@ func (c *Controller) onMacvlanSubnetAdd(obj interface{}) {
 		}
 	}
 
-	_, err := c.macvlanclientset.MacvlanV1().MacvlanSubnets("kube-system").Create(subnet)
+	_, err := c.macvlanclientset.MacvlanV1().MacvlanSubnets("kube-system").Update(subnet)
 	if err != nil {
-		log.Errorf("MacvlanSubnets create : %v %s %v", err, subnet.Name, subnet)
+		log.Errorf("MacvlanSubnets Update : %v %s %v", err, subnet.Name, subnet)
 	}
-}
-
-func splitActionMetaNamespaceKey(key string) (string, string, string, error) {
-	parts := strings.Split(key, "/")
-	switch len(parts) {
-	case 2:
-		// name only, no namespace
-		return parts[0], "", parts[1], nil
-	case 3:
-		// namespace and name
-		return parts[0], parts[1], parts[2], nil
-	}
-
-	return "", "", "", fmt.Errorf("unexpected action key format: %q", key)
-
 }
 
 // syncHandler compares the actual state with the desired, and attempts to
@@ -348,19 +391,50 @@ func splitActionMetaNamespaceKey(key string) (string, string, string, error) {
 func (c *Controller) syncHandler(key string) error {
 
 	// Convert the namespace/name string into a distinct namespace and name
-	action, namespace, name, err := splitActionMetaNamespaceKey(key)
-	if err != nil {
-		utilruntime.HandleError(fmt.Errorf("invalid resource key: %s", key))
-		return nil
+	// namespace, name, err := splitActionMetaNamespaceKey(key)
+	// if err != nil {
+	// 	utilruntime.HandleError(fmt.Errorf("invalid resource key: %s", key))
+	// 	return nil
+	// }
+
+	return nil
+}
+
+func getUsedIPsFromMacvlanips(ips *v1.MacvlanIPList) []string {
+	used := []string{}
+	for _, item := range ips.Items {
+		ip := strings.Split(item.Spec.CIDR, "/")
+		if len(ip) == 2 {
+			used = append(used, ip[0])
+		}
+	}
+	return used
+}
+
+func CalcHostsFromRanges(ranges []v1.IPRange) []string {
+	hosts := []string{}
+
+	for _, v := range ranges {
+		ips, err := cidr.ParseIPRange(v.RangeStart, v.RangeEnd)
+		if err != nil {
+			log.Error(err)
+		}
+		hosts = append(hosts, ips...)
 	}
 
-	switch action {
-	case "add":
-		log.Infof("add    %s %s", namespace, name)
-	case "delete":
-		log.Infof("delete    %s %s", namespace, name)
-	case "update":
-		log.Infof("update    %s %s", namespace, name)
+	return RemoveDuplicatesFromSlice(hosts)
+}
+
+func RemoveDuplicatesFromSlice(s []string) []string {
+	m := make(map[string]bool)
+	result := []string{}
+	for _, item := range s {
+		if _, ok := m[item]; ok {
+
+		} else {
+			m[item] = true
+			result = append(result, item)
+		}
 	}
-	return nil
+	return result
 }
