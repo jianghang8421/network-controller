@@ -77,7 +77,7 @@ addons_include:
 
 ### 测试
 
-测试同一vlan的连通性，测试不通vlan pod的连通性
+测试同一vlan的连通性，测试不同vlan pod的连通性
 
 ## FAQ
 
