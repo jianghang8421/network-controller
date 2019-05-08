@@ -7,3 +7,6 @@ ip link set br0 up
 
 dnsmasq --interface=br0 --bind-interfaces --dhcp-range=172.20.0.2,172.20.255.254
 
+# disable what docker does
+sysctl net.bridge.bridge-nf-call-iptables=0
+
