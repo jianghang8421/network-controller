@@ -43,6 +43,15 @@ password: asdfgh
 chpasswd: { expire: False }
 ssh_pwauth: True
 hostname: $HOSTNAME
+bootcmd:
+ - dhclient ens4
+ - ip route del default via 172.20.0.1 dev ens4
+runcmd:
+ - curl https://releases.rancher.com/install-docker/18.06.sh | sh
+ - echo 172.20.115.71 rancher-1 >> /etc/hosts
+ - echo 172.20.115.72 rancher-2 >> /etc/hosts
+ - docker pull rancher/rancher-agent:v2.2.2
+ - docker tag rancher/rancher-agent:v2.2.2 cnrancher/rancher-agent:v2.2.2-macvlan
 EOF
 
 cloud-localds ${USERDATA_IMG} ${USERDATA_FILE}
