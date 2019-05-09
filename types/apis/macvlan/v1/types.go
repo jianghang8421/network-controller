@@ -4,6 +4,17 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+const (
+	MacvlanSubnetNamespace = "kube-system"
+
+	MacvlanAnnotationPrefix = "macvlan.pandaria.cattle.io/"
+	AnnotationIP            = MacvlanAnnotationPrefix + "ip"
+	AnnotationSubnet        = MacvlanAnnotationPrefix + "subnet"
+	AnnotationMac           = MacvlanAnnotationPrefix + "mac"
+
+	AnnotationSelectedIP = MacvlanAnnotationPrefix + "selectedIp"
+)
+
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 

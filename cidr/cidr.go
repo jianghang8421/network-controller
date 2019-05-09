@@ -46,6 +46,9 @@ func inc(ip net.IP) {
 }
 
 func TryFixNetMask(ip, cidr string) (string, error) {
+	if ip == "" {
+		return "", fmt.Errorf("ip allocate fail")
+	}
 	i := strings.IndexByte(ip, '/')
 	if i < 0 {
 		a := strings.Split(cidr, "/")
