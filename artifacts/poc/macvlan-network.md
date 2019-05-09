@@ -30,7 +30,7 @@ docker tag rancher/rancher-agent:v2.2.2 cnrancher/rancher-agent:v2.2.2-macvlan
 
 选择 **添加集群 - Custom**
 
-选择v1.14.1版本的k8s，其他k8s版本兼容性还在测试中。
+选择任意版本的k8s。
 
 配置好其他选项后，点选"编辑YAML"，将其中的 network/plugin 字段修改为none，并添加addons如下：
 
