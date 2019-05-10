@@ -16,6 +16,7 @@ import (
 	// Uncomment the following line to load the gcp plugin (only required to authenticate against GKE clusters).
 	// _ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
 
+	"github.com/cnrancher/network-controller/controller"
 	clientset "github.com/cnrancher/network-controller/pkg/generated/clientset/versioned"
 	informers "github.com/cnrancher/network-controller/pkg/generated/informers/externalversions"
 	"github.com/cnrancher/network-controller/pkg/signals"
@@ -60,7 +61,7 @@ func main() {
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(kubeClient, time.Second*30)
 	macvlanInformerFactory := informers.NewSharedInformerFactory(macvlanClientSet, time.Second*30)
 
-	controller := NewController(kubeClient, macvlanClientSet,
+	controller := controller.NewController(kubeClient, macvlanClientSet,
 		kubeInformerFactory.Apps().V1().Deployments(),
 		kubeInformerFactory.Core().V1().Pods(),
 		macvlanInformerFactory.Macvlan().V1().MacvlanIPs(),

@@ -65,9 +65,9 @@ func NewController(
 	macvlanSubnetInformer informers.MacvlanSubnetInformer) *Controller {
 
 	utilruntime.Must(macvlanscheme.AddToScheme(scheme.Scheme))
-	klog.V(4).Info("Creating event broadcaster")
+	log.Info("Creating event broadcaster")
 	eventBroadcaster := record.NewBroadcaster()
-	eventBroadcaster.StartLogging(klog.Infof)
+	eventBroadcaster.StartLogging(log.Infof)
 	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: kubeclientset.CoreV1().Events("")})
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: controllerAgentName})
 
@@ -91,18 +91,15 @@ func NewController(
 		recorder:  recorder,
 	}
 
-	klog.Info("Setting up event handlers")
+	log.Info("Setting up event handlers")
 
 	podInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc:    controller.onPodAdd,
-		DeleteFunc: controller.onPodDelete,
-		UpdateFunc: controller.onPodUpdate,
+		AddFunc: controller.onPodAdd,
 	})
 
 	macvlanSubnetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: controller.onMacvlanSubnetAdd,
 	})
-
 	return controller
 }
 
@@ -205,25 +202,6 @@ func (c *Controller) onPodAdd(obj interface{}) {
 }
 
 func (c *Controller) onPodUpdate(old, new interface{}) {
-
-	// oldPod := old.(*corev1.Pod)
-	// newPod := new.(*corev1.Pod)
-
-	// if c.networkSettingChanged(oldPod, newPod) {
-	// 	// c.doOnPodDelete(oldPod)
-	// 	// c.doOnPodAdd(newPod)
-	// 	// log.Info("do update pod")
-	// 	// err := c.kubeclientset.CoreV1().Pods(oldPod.Namespace).Delete(oldPod.Name, &metav1.DeleteOptions{})
-	// 	// if err != nil {
-	// 	// 	log.Errorf("updating delete error: %v", err)
-	// 	// 	return
-	// 	// }
-	// 	// _, err = c.kubeclientset.CoreV1().Pods(newPod.Namespace).Create(newPod)
-	// 	// if err != nil {
-	// 	// 	log.Errorf("updating create error: %v", err)
-	// 	// 	return
-	// 	// }
-	// }
 }
 
 func (c *Controller) networkSettingChanged(old, new *corev1.Pod) bool {
@@ -257,6 +235,7 @@ func (c *Controller) doOnPodAdd(pod *corev1.Pod) {
 
 	vlan, err := c.macvlanclientset.MacvlanV1().MacvlanSubnets(macvlanv1.MacvlanSubnetNamespace).Get(MacvlanSubnetName, metav1.GetOptions{})
 	if err != nil {
+		c.recorder.Event(pod, corev1.EventTypeNormal, "ErrMacvlanSubnets", err.Error())
 		log.Errorf("Get MacvlanSubnet error: %s %s\n", MacvlanSubnetName, err)
 		return
 	}
@@ -272,7 +251,9 @@ func (c *Controller) doOnPodAdd(pod *corev1.Pod) {
 
 			}
 			log.Infof("using ips: %v", ips)
-			usedIPs := getUsedIPsFromMacvlanips(ips)
+			gwIP := vlan.Spec.Gateway
+			usedIPs := []string{gwIP}
+			usedIPs = append(usedIPs, getUsedIPsFromMacvlanips(ips)...)
 			log.Infof("used ips: %v", ips)
 			if len(vlan.Spec.Ranges) == 0 {
 				newCIDR, err := cidr.AllocateCIDR(vlan.Spec.CIDR, usedIPs)
@@ -323,6 +304,11 @@ func (c *Controller) doOnPodAdd(pod *corev1.Pod) {
 
 	log.Infof("Pod creating: podName %s - annotationIP %s", pod.Name, newAnnotationCIDR)
 
+	log.Infof("pod APIVersion %s", pod.APIVersion)
+	log.Infof("pod Kind %s", pod.Kind)
+	log.Infof("pod UID %s", pod.UID)
+	log.Infof("pod Name %s", pod.Name)
+
 	macvlanip := &macvlanv1.MacvlanIP{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      pod.Name,
@@ -330,11 +316,14 @@ func (c *Controller) doOnPodAdd(pod *corev1.Pod) {
 			Labels: map[string]string{
 				"subnet": vlan.Name,
 			},
-			// OwnerReferences: []metav1.OwnerReference{
-			// 	metav1.OwnerReference{
-			// 		Name: pod.Name,
-			// 	},
-			// },
+			OwnerReferences: []metav1.OwnerReference{
+				metav1.OwnerReference{
+					APIVersion: "v1",
+					Kind:       "Pod",
+					UID:        pod.UID,
+					Name:       pod.Name,
+				},
+			},
 		},
 		Spec: macvlanv1.MacvlanIPSpec{
 			CIDR:   newAnnotationCIDR,
@@ -396,6 +385,7 @@ func (c *Controller) selectAnnotationMultipleIP(iplabel string, pod *corev1.Pod)
 }
 
 func (c *Controller) doOnPodDelete(pod *corev1.Pod) {
+	return
 	annotationIP, exist := pod.GetAnnotations()[macvlanv1.AnnotationIP]
 	if !exist {
 		return
@@ -438,15 +428,12 @@ func (c *Controller) onMacvlanSubnetAdd(obj interface{}) {
 		subnet.Labels = map[string]string{}
 	}
 	subnet.Labels["master"] = subnet.Spec.Master
-	if subnet.Spec.VLAN != 0 {
-		subnet.Labels["vlan"] = fmt.Sprint(subnet.Spec.VLAN)
-	}
-
+	subnet.Labels["vlan"] = fmt.Sprint(subnet.Spec.VLAN)
 	subnet.Labels["mode"] = subnet.Spec.Mode
 
 	if subnet.Spec.Gateway == "" {
 		var err error
-		subnet.Spec.Gateway, err = cidr.CalcGatewayByCIDR(subnet.Spec.CIDR)
+		subnet.Spec.Gateway, err = cidr.CalcDefaultGatewayByCIDR(subnet.Spec.CIDR)
 		if err != nil {
 			log.Errorf("CalcGatewayByCIDR error : %v %s", err, subnet.Spec.CIDR)
 		}

@@ -29,5 +29,11 @@ clean:
 	rm -rf bin/ dist/
 
 image:
-	docker build -f package/Dockerfile -t cnrancher/network-controller:v0.2.0 .
-	docker push cnrancher/network-controller:v0.2.0
+	docker build -f package/Dockerfile -t wardenlym/network-controller:v0.2.1 .
+	docker push wardenlym/network-controller:v0.2.1
+
+poc:
+	cat ./artifacts/multus-daemonset.yml \
+		./artifacts/network-cni-daemonset.yml \
+		./artifacts/flannel-daemonset.yml \
+		./artifacts/network-controller.yml > ./artifacts/poc/macvlan-network.yml

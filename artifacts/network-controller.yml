@@ -115,15 +115,39 @@ spec:
       }
     }'
 ---
-apiVersion: v1
-kind: Pod
+# apiVersion: v1
+# kind: Pod
+# metadata:
+#   name: network-controller
+#   namespace: kube-system
+# spec:
+#   containers:
+#   - image: cnrancher/network-controller:v0.2.0
+#     name: network-controller
+#   restartPolicy: Always
+#   serviceAccountName: multus
+# ---
+---
+apiVersion: apps/v1
+kind: Deployment
 metadata:
   name: network-controller
   namespace: kube-system
+  labels:
+    app: network-controller
 spec:
-  containers:
-  - image: cnrancher/network-controller:v0.2.0
-    name: network-controller
-  restartPolicy: Always
-  serviceAccountName: multus
+  replicas: 1
+  selector:
+    matchLabels:
+      app: network-controller
+  template:
+    metadata:
+      namespace: kube-system
+      labels:
+        app: network-controller
+    spec:
+      serviceAccountName: multus
+      containers:
+      - image: wardenlym/network-controller:v0.2.1
+        name: network-controller
 ---

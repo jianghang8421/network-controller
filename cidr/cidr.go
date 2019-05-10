@@ -68,10 +68,16 @@ func Hosts(cidr string) ([]string, error) {
 
 	var ips []string
 	for ip := ip.Mask(ipnet.Mask); ipnet.Contains(ip); inc(ip) {
+		if len(ip) == 4 {
+			if ip[3] == 0x00 || ip[3] == 0xff {
+				continue
+			}
+		}
 		ips = append(ips, ip.String())
 	}
 	// remove network address and broadcast address
-	return ips[2 : len(ips)-1], nil
+
+	return ips, nil
 }
 
 func RandomIP(cidr string) (string, error) {
@@ -138,7 +144,7 @@ func diff(slice1 []string, slice2 []string) []string {
 	return diff
 }
 
-func CalcGatewayByCIDR(cidr string) (string, error) {
+func CalcDefaultGatewayByCIDR(cidr string) (string, error) {
 	ip, ipnet, err := net.ParseCIDR(cidr)
 	if err != nil {
 		return "", err

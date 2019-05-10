@@ -7,8 +7,8 @@ metadata:
     app: samplepod
   annotations:
     k8s.v1.cni.cncf.io/networks: static-macvlan-cni
-    cidr: auto
-    subnet: eth0.100
+    macvlan.pandaria.cattle.io/ip: auto
+    macvlan.pandaria.cattle.io/subnet: eth0.100
 spec:
   containers:
   - image: busybox

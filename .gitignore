@@ -6,3 +6,4 @@
 *.swp
 /artifacts/kvm_setup/state
 /artifacts/kvm_setup/images
+.DS_Store

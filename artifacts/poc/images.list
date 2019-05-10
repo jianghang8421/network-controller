@@ -1,0 +1,3 @@
+nfvpe/multus:v3.2
+cnrancher/static-macvlan-cni:v0.2.1
+quay.io/coreos/flannel:v0.10.0-amd64
