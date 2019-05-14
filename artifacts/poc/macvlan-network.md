@@ -125,3 +125,20 @@ bridge fdb show dev flannel.1
 
 如果dst有问题，则需要修改Flannel启动参数，一般调整iface即可。
 
+### 同一subnet不同namespace的POD连通性
+
+同一个macvlan subnet下，POD可以部署在不同的namespace上，这时POD的IP在不同的namespace中不会重复，且POD之间的macvlan网络可以连接。
+
+### 不同namespace POD的macvlan如何隔离
+
+不同的namespace采用不同的subnet，利用vlan的隔离性来隔离namespace之间的网络。
+
+### 同一个workload最多能够同时指定多少对IP和MAC
+
+指定的IP和MAC会设置到label中，所以会受Kubernetes本身label value不能超过253字符长度的限制，所以同时指定的IP和MAC最多不能超过14对。
+
+## 其他文档参考
+
+- https://intel.github.io/multus-cni/doc/configuration.html
+
+
