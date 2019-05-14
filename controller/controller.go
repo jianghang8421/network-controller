@@ -56,7 +56,8 @@ func NewController(
 	deploymentInformer appsinformers.DeploymentInformer,
 	podInformer coreinformers.PodInformer,
 	macvlanipInformer informers.MacvlanIPInformer,
-	macvlanSubnetInformer informers.MacvlanSubnetInformer) *Controller {
+	macvlanSubnetInformer informers.MacvlanSubnetInformer,
+	done <-chan struct{}) *Controller {
 
 	utilruntime.Must(macvlanscheme.AddToScheme(scheme.Scheme))
 	log.Info("Creating event broadcaster")
@@ -94,6 +95,13 @@ func NewController(
 	macvlanSubnetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: controller.onMacvlanSubnetAdd,
 	})
+
+	StartPurgeDaemon(
+		macvlanipInformer.Lister(),
+		podInformer.Lister(),
+		macvlanclientset,
+		done)
+
 	return controller
 }
 

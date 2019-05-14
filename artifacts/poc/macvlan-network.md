@@ -19,11 +19,20 @@ server请下载：
 docker pull cnrancher/rancher:v2.2.2-macvlan
 ```
 
-agent请下载：
+agent请使用：
 
 ```
 docker pull rancher/rancher-agent:v2.2.2
 docker tag rancher/rancher-agent:v2.2.2 cnrancher/rancher-agent:v2.2.2-macvlan
+```
+
+其他需要的镜像(image.list):
+
+```
+nfvpe/multus:v3.2
+quay.io/coreos/flannel:v0.10.0-amd64
+cnrancher/static-macvlan-cni:v0.2.1
+cnrancher/network-controller:v0.2.1
 ```
 
 ### 创建集群
@@ -39,10 +48,7 @@ network:
   plugin: "none"
 
 addons_include:
-  - https://raw.githubusercontent.com/cnrancher/network-controller/v0.2.0/artifacts/multus-daemonset.yml
-  - https://raw.githubusercontent.com/cnrancher/network-controller/v0.2.0/artifacts/network-cni-daemonset.yml
-  - https://raw.githubusercontent.com/cnrancher/network-controller/v0.2.0/artifacts/flannel-daemonset.yml
-  - https://raw.githubusercontent.com/cnrancher/network-controller/v0.2.0/artifacts/network-controller.yml
+  - https://raw.githubusercontent.com/cnrancher/network-controller/v0.2.1-dev/artifacts/poc/macvlan-network.yml
 
 ```
 
@@ -78,10 +84,7 @@ network:
   plugin: "none"
 
 addons_include:
-  - /var/lib/rancher/network-addons/multus-daemonset.yml
-  - /var/lib/rancher/network-addons/network-cni-daemonset.yml
-  - /var/lib/rancher/network-addons/flannel-daemonset.yml
-  - /var/lib/rancher/network-addons/network-controller.yml
+  - /var/lib/rancher/network-addons/macvlan-network.yml
 ```
 
 下一步，之后等待集群创建完成。

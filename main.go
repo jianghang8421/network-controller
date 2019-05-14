@@ -61,11 +61,12 @@ func main() {
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(kubeClient, time.Second*30)
 	macvlanInformerFactory := informers.NewSharedInformerFactory(macvlanClientSet, time.Second*30)
 
-	controller := controller.NewController(kubeClient, macvlanClientSet,
+	c := controller.NewController(kubeClient, macvlanClientSet,
 		kubeInformerFactory.Apps().V1().Deployments(),
 		kubeInformerFactory.Core().V1().Pods(),
 		macvlanInformerFactory.Macvlan().V1().MacvlanIPs(),
-		macvlanInformerFactory.Macvlan().V1().MacvlanSubnets())
+		macvlanInformerFactory.Macvlan().V1().MacvlanSubnets(),
+		stopCh)
 
 	// notice that there is no need to run Start methods in a separate goroutine. (i.e. go kubeInformerFactory.Start(stopCh)
 	// Start method is non-blocking and runs all registered informers in a dedicated goroutine.
@@ -73,7 +74,8 @@ func main() {
 	kubeInformerFactory.Start(stopCh)
 	macvlanInformerFactory.Start(stopCh)
 	fmt.Println("controller run")
-	if err = controller.Run(1, stopCh); err != nil {
+
+	if err = c.Run(1, stopCh); err != nil {
 		klog.Fatalf("Error running controller: %s", err.Error())
 	}
 }

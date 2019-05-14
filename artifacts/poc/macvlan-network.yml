@@ -206,7 +206,7 @@ spec:
       serviceAccountName: multus
       containers:
       - name: kube-macvlan-cni
-        image: cnrancher/static-macvlan-cni:v0.2.0
+        image: cnrancher/static-macvlan-cni:v0.2.1
         command: ["/entrypoint.sh"]
         args:
         - ""

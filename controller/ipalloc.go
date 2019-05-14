@@ -62,9 +62,12 @@ func GetSubnetHosts(subnet *macvlanv1.MacvlanSubnet) ([]net.IP, error) {
 	}
 
 	ranges := CalcHostsFromRanges(subnet.Spec.Ranges)
+	if len(ranges) != 0 {
+		useable := ipcalc.GetUseableHosts(hosts, ranges)
+		return useable, nil
+	}
 
-	useable := ipcalc.GetUseableHosts(hosts, ranges)
-	return useable, nil
+	return hosts, nil
 }
 
 func CalcHostsFromRanges(ranges []v1.IPRange) []net.IP {
