@@ -48,7 +48,7 @@ network:
   plugin: "none"
 
 addons_include:
-  - https://raw.githubusercontent.com/cnrancher/network-controller/v0.2.1-dev/artifacts/poc/macvlan-network.yml
+  - https://raw.githubusercontent.com/cnrancher/network-controller/v0.2.1/artifacts/poc/macvlan-network.yml
 
 ```
 
