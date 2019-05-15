@@ -7,11 +7,11 @@ import (
 
 	"github.com/ehazlett/simplelog"
 	log "github.com/sirupsen/logrus"
+	"k8s.io/client-go/dynamic"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"k8s.io/klog"
 
 	// Uncomment the following line to load the gcp plugin (only required to authenticate against GKE clusters).
 	// _ "k8s.io/client-go/plugin/pkg/client/auth/gcp"
@@ -36,12 +36,12 @@ func main() {
 	if kubeconfig == "" {
 		cfg, err = rest.InClusterConfig()
 		if err != nil {
-			klog.Fatalf("Error get cluster kubeconfig: %s", err.Error())
+			log.Fatalf("Error get cluster kubeconfig: %s", err.Error())
 		}
 	} else {
 		cfg, err = clientcmd.BuildConfigFromFlags(masterURL, kubeconfig)
 		if err != nil {
-			klog.Fatalf("Error building kubeconfig: %s", err.Error())
+			log.Fatalf("Error building kubeconfig: %s", err.Error())
 		}
 	}
 
@@ -50,19 +50,28 @@ func main() {
 
 	kubeClient, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
-		klog.Fatalf("Error building kubernetes clientset: %s", err.Error())
+		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
+	}
+
+	dynamicKubeClient, err := dynamic.NewForConfig(cfg)
+	if err != nil {
+		log.Fatalf("Error building example clientset: %s", err.Error())
 	}
 
 	macvlanClientSet, err := clientset.NewForConfig(cfg)
 	if err != nil {
-		klog.Fatalf("Error building example clientset: %s", err.Error())
+		log.Fatalf("Error building example clientset: %s", err.Error())
 	}
 
 	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(kubeClient, time.Second*30)
 	macvlanInformerFactory := informers.NewSharedInformerFactory(macvlanClientSet, time.Second*30)
 
-	c := controller.NewController(kubeClient, macvlanClientSet,
+	c := controller.NewController(
+		kubeClient,
+		dynamicKubeClient,
+		macvlanClientSet,
 		kubeInformerFactory.Apps().V1().Deployments(),
+		kubeInformerFactory.Core().V1().Namespaces(),
 		kubeInformerFactory.Core().V1().Pods(),
 		macvlanInformerFactory.Macvlan().V1().MacvlanIPs(),
 		macvlanInformerFactory.Macvlan().V1().MacvlanSubnets(),
@@ -76,7 +85,7 @@ func main() {
 	fmt.Println("controller run")
 
 	if err = c.Run(1, stopCh); err != nil {
-		klog.Fatalf("Error running controller: %s", err.Error())
+		log.Fatalf("Error running controller: %s", err.Error())
 	}
 }
 

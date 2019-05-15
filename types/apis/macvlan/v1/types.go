@@ -12,7 +12,8 @@ const (
 	AnnotationSubnet        = MacvlanAnnotationPrefix + "subnet"
 	AnnotationMac           = MacvlanAnnotationPrefix + "mac"
 
-	AnnotationSelectedIP = MacvlanAnnotationPrefix + "selectedIp"
+	LabelSelectedIP     = MacvlanAnnotationPrefix + "selectedIp"
+	LabelMultipleIPHash = MacvlanAnnotationPrefix + "multipleIpHash"
 )
 
 // +genclient

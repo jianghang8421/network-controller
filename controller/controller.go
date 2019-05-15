@@ -9,6 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/dynamic"
 	appsinformers "k8s.io/client-go/informers/apps/v1"
 	coreinformers "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
@@ -33,6 +34,8 @@ type Controller struct {
 	kubeclientset    kubernetes.Interface
 	macvlanclientset clientset.Interface
 
+	dynamicKubeClient dynamic.Interface
+
 	macvlanipsLister listers.MacvlanIPLister
 	macvlansSynced   cache.InformerSynced
 
@@ -45,6 +48,9 @@ type Controller struct {
 	deploymentsLister appslisters.DeploymentLister
 	deploymentsSynced cache.InformerSynced
 
+	namespaceLister corelisters.NamespaceLister
+	namespaceSynced cache.InformerSynced
+
 	workqueue workqueue.RateLimitingInterface
 	recorder  record.EventRecorder
 }
@@ -52,8 +58,10 @@ type Controller struct {
 // NewController returns a new sample controller
 func NewController(
 	kubeclientset kubernetes.Interface,
+	dynamicKubeClient dynamic.Interface,
 	macvlanclientset clientset.Interface,
 	deploymentInformer appsinformers.DeploymentInformer,
+	namespaceInformer coreinformers.NamespaceInformer,
 	podInformer coreinformers.PodInformer,
 	macvlanipInformer informers.MacvlanIPInformer,
 	macvlanSubnetInformer informers.MacvlanSubnetInformer,
@@ -67,8 +75,9 @@ func NewController(
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: controllerAgentName})
 
 	controller := &Controller{
-		kubeclientset:    kubeclientset,
-		macvlanclientset: macvlanclientset,
+		kubeclientset:     kubeclientset,
+		dynamicKubeClient: dynamicKubeClient,
+		macvlanclientset:  macvlanclientset,
 
 		macvlanipsLister: macvlanipInformer.Lister(),
 		macvlansSynced:   macvlanipInformer.Informer().HasSynced,
@@ -82,6 +91,9 @@ func NewController(
 		deploymentsLister: deploymentInformer.Lister(),
 		deploymentsSynced: deploymentInformer.Informer().HasSynced,
 
+		namespaceLister: namespaceInformer.Lister(),
+		namespaceSynced: namespaceInformer.Informer().HasSynced,
+
 		workqueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "network-controller"),
 		recorder:  recorder,
 	}
@@ -94,6 +106,11 @@ func NewController(
 
 	macvlanSubnetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: controller.onMacvlanSubnetAdd,
+	})
+
+	namespaceInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc:    controller.onNamespaceAdd,
+		DeleteFunc: controller.onNamespaceDelete,
 	})
 
 	StartPurgeDaemon(

@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"crypto/sha1"
 	"fmt"
 	"net"
 
@@ -86,8 +87,10 @@ func (c *Controller) addMacvlanIP(pod *corev1.Pod) error {
 		if result.Labels == nil {
 			result.Labels = map[string]string{}
 		}
-		result.Labels[macvlanv1.AnnotationSelectedIP] = allocatedIP.String()
-		result.Labels[macvlanv1.AnnotationIP] = annotationIP
+
+		result.Labels[macvlanv1.LabelSelectedIP] = allocatedIP.String()
+		hash := fmt.Sprintf("%x", sha1.Sum([]byte(annotationIP)))
+		result.Labels[macvlanv1.LabelMultipleIPHash] = hash
 
 		_, updateErr := c.kubeclientset.CoreV1().Pods(result.Namespace).Update(result)
 

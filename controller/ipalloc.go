@@ -2,6 +2,7 @@ package controller
 
 import (
 	"bytes"
+	"crypto/sha1"
 	"fmt"
 	"net"
 	"strings"
@@ -16,7 +17,7 @@ import (
 
 func (c *Controller) allocateAutoModeIP(pod *corev1.Pod, subnet *macvlanv1.MacvlanSubnet) (net.IP, string, error) {
 	ips, err := c.macvlanclientset.MacvlanV1().
-		MacvlanIPs(pod.Namespace).
+		MacvlanIPs("").
 		List(metav1.ListOptions{LabelSelector: "subnet=" + subnet.Name})
 
 	used := macvlanListIP(ips)
@@ -100,7 +101,7 @@ func isSingleIP(ip string) bool {
 
 func (c *Controller) allocateSingleIP(pod *corev1.Pod, subnet *macvlanv1.MacvlanSubnet, ipValue string) (net.IP, string, error) {
 	ips, err := c.macvlanclientset.MacvlanV1().
-		MacvlanIPs(pod.Namespace).
+		MacvlanIPs("").
 		List(metav1.ListOptions{LabelSelector: "subnet=" + subnet.Name})
 
 	used := macvlanListIP(ips)
@@ -160,9 +161,10 @@ func (c *Controller) allocateMultipleIP(pod *corev1.Pod, subnet *macvlanv1.Macvl
 		ip_unused[v] = true
 	}
 
+	hash := fmt.Sprintf("%x", sha1.Sum([]byte(annotationIP)))
 	ret, err := c.kubeclientset.CoreV1().
 		Pods(pod.Namespace).
-		List(metav1.ListOptions{LabelSelector: macvlanv1.AnnotationIP + "=" + annotationIP})
+		List(metav1.ListOptions{LabelSelector: macvlanv1.LabelMultipleIPHash + "=" + hash})
 
 	if err != nil {
 		return nil, "", err
@@ -171,7 +173,7 @@ func (c *Controller) allocateMultipleIP(pod *corev1.Pod, subnet *macvlanv1.Macvl
 	log.Infof("labeled pod count： %v", len(ret.Items))
 	for _, v := range ret.Items {
 
-		labelIp := v.Labels[macvlanv1.AnnotationSelectedIP]
+		labelIp := v.Labels[macvlanv1.LabelSelectedIP]
 		if labelIp != "" && ip_unused[labelIp] == true {
 			ip_unused[labelIp] = false
 		}
@@ -182,7 +184,7 @@ func (c *Controller) allocateMultipleIP(pod *corev1.Pod, subnet *macvlanv1.Macvl
 			ip := net.ParseIP(key)
 
 			ips, err := c.macvlanclientset.MacvlanV1().
-				MacvlanIPs(pod.Namespace).
+				MacvlanIPs("").
 				List(metav1.ListOptions{LabelSelector: "subnet=" + subnet.Name})
 
 			used := macvlanListIP(ips)

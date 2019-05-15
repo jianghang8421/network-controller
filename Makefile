@@ -28,7 +28,7 @@ dev:
 clean:
 	rm -rf bin/ dist/
 
-image:
+image: poc
 	docker build -f package/Dockerfile -t wardenlym/network-controller:v0.2.1 .
 	docker push wardenlym/network-controller:v0.2.1
 

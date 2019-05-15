@@ -806,40 +806,6 @@ spec:
     type: string
     JSONPath: .spec.gateway
 ---
-apiVersion: "k8s.cni.cncf.io/v1"
-kind: NetworkAttachmentDefinition
-metadata:
-  name: static-macvlan-cni
-  namespace: default
-spec:
-  config: '{
-      "cniVersion": "0.3.0",
-      "type": "static-macvlan-cni",
-      "master": "",
-      "ipam": {
-        "type": "static-ipam",
-        "addresses": [
-            {
-              "address": "{address}",
-              "gateway": "{gateway}"
-            }
-          ]
-      }
-    }'
----
-# apiVersion: v1
-# kind: Pod
-# metadata:
-#   name: network-controller
-#   namespace: kube-system
-# spec:
-#   containers:
-#   - image: cnrancher/network-controller:v0.2.0
-#     name: network-controller
-#   restartPolicy: Always
-#   serviceAccountName: multus
-# ---
----
 apiVersion: apps/v1
 kind: Deployment
 metadata:
