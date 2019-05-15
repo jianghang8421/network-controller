@@ -29,8 +29,8 @@ clean:
 	rm -rf bin/ dist/
 
 image: poc
-	docker build -f package/Dockerfile -t wardenlym/network-controller:v0.2.1 .
-	docker push wardenlym/network-controller:v0.2.1
+	docker build -f package/Dockerfile -t cnrancher/network-controller:v0.2.1 .
+	docker push cnrancher/network-controller:v0.2.1
 
 poc:
 	cat ./artifacts/multus-daemonset.yml \
