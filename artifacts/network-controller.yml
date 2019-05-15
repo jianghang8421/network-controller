@@ -114,6 +114,6 @@ spec:
     spec:
       serviceAccountName: multus
       containers:
-      - image: wardenlym/network-controller:v0.2.1
+      - image: cnrancher/network-controller:v0.2.1
         name: network-controller
 ---

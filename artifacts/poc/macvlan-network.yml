@@ -37,22 +37,6 @@ rules:
   verbs:
   - '*'
 ---
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: multus-crd-overpowered
-rules:
-- apiGroups:
-  - '*'
-  resources:
-  - '*'
-  verbs:
-  - '*'
-- nonResourceURLs:
-  - '*'
-  verbs:
-  - '*'
----
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
@@ -826,6 +810,6 @@ spec:
     spec:
       serviceAccountName: multus
       containers:
-      - image: wardenlym/network-controller:v0.2.1
+      - image: cnrancher/network-controller:v0.2.1
         name: network-controller
 ---
