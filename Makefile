@@ -28,7 +28,7 @@ dev:
 clean:
 	rm -rf bin/ dist/
 
-image: poc
+image:
 	docker build -f package/Dockerfile -t cnrancher/network-controller:v0.2.1 .
 	docker push cnrancher/network-controller:v0.2.1
 
@@ -37,3 +37,7 @@ poc:
 		./artifacts/network-cni-daemonset.yml \
 		./artifacts/flannel-daemonset.yml \
 		./artifacts/network-controller.yml > ./artifacts/poc/macvlan-network.yml
+
+rc: ci poc
+	docker build -f package/Dockerfile -t wardenlym/network-controller:v0.2.2 .
+	docker push wardenlym/network-controller:v0.2.2

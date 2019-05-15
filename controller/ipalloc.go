@@ -152,13 +152,24 @@ func isMultipleIP(ip string) bool {
 	return true
 }
 
-func (c *Controller) allocateMultipleIP(pod *corev1.Pod, subnet *macvlanv1.MacvlanSubnet, annotationIP string) (net.IP, string, error) {
+func (c *Controller) allocateMultipleIP(pod *corev1.Pod, subnet *macvlanv1.MacvlanSubnet, annotationIP string, annotationMac string) (net.IP, string, string, error) {
 
+	macs := []string{}
 	ips := strings.Split(strings.Trim(annotationIP, " "), "-")
-	ip_unused := map[string]bool{}
 
-	for _, v := range ips {
-		ip_unused[v] = true
+	if strings.Contains(annotationMac, "-") {
+		macs = strings.Split(strings.Trim(annotationMac, " "), "-")
+		if len(macs) != len(ips) {
+			return nil, "", "", fmt.Errorf("count of multiple IP and Mac not same: %s %s", annotationIP, annotationMac)
+		}
+	}
+
+	ipUnused := map[string]bool{}
+	ipToMac := map[string]string{}
+
+	for i, v := range ips {
+		ipUnused[v] = true
+		ipToMac[v] = macs[i]
 	}
 
 	hash := fmt.Sprintf("%x", sha1.Sum([]byte(annotationIP)))
@@ -167,20 +178,20 @@ func (c *Controller) allocateMultipleIP(pod *corev1.Pod, subnet *macvlanv1.Macvl
 		List(metav1.ListOptions{LabelSelector: macvlanv1.LabelMultipleIPHash + "=" + hash})
 
 	if err != nil {
-		return nil, "", err
+		return nil, "", "", err
 	}
 
 	log.Infof("labeled pod count： %v", len(ret.Items))
 	for _, v := range ret.Items {
 
-		labelIp := v.Labels[macvlanv1.LabelSelectedIP]
-		if labelIp != "" && ip_unused[labelIp] == true {
-			ip_unused[labelIp] = false
+		labelIP := v.Labels[macvlanv1.LabelSelectedIP]
+		if labelIP != "" && ipUnused[labelIP] == true {
+			ipUnused[labelIP] = false
 		}
 	}
 
-	for key, unused := range ip_unused {
-		if unused {
+	for _, key := range ips {
+		if ipUnused[key] {
 			ip := net.ParseIP(key)
 
 			ips, err := c.macvlanclientset.MacvlanV1().
@@ -191,21 +202,26 @@ func (c *Controller) allocateMultipleIP(pod *corev1.Pod, subnet *macvlanv1.Macvl
 			used = append(used, net.ParseIP(subnet.Spec.Gateway))
 			hosts, err := GetSubnetHosts(subnet)
 			if err != nil {
-				return nil, "", err
+				return nil, "", "", err
 			}
 
 			if !InHosts(hosts, ip) {
-				return nil, "", fmt.Errorf("%s invalid in %s", ip.String(), subnet.Name)
+				return nil, "", "", fmt.Errorf("%s invalid in %s", ip.String(), subnet.Name)
 			}
 
 			if InHosts(used, ip) {
-				return nil, "", fmt.Errorf("%s is used in %s", ip.String(), subnet.Name)
+				return nil, "", "", fmt.Errorf("%s is used in %s", ip.String(), subnet.Name)
 			}
 
-			return ip, addMask(ip, subnet.Spec.CIDR), nil
+			mac := ""
+			if len(macs) != 0 {
+				mac = ipToMac[key]
+			}
+
+			return ip, addMask(ip, subnet.Spec.CIDR), mac, nil
 		}
 	}
 
 	// send event ip no enough
-	return nil, "", fmt.Errorf("No enough ip resouce in subnet: %s", annotationIP)
+	return nil, "", "", fmt.Errorf("No enough ip resouce in subnet: %s", annotationIP)
 }

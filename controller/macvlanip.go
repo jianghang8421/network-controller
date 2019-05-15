@@ -43,6 +43,7 @@ func (c *Controller) addMacvlanIP(pod *corev1.Pod) error {
 
 	annotationIP := pod.Annotations[macvlanv1.AnnotationIP]
 	macvlansubnetName := pod.Annotations[macvlanv1.AnnotationSubnet]
+	annotationMac := pod.Annotations[macvlanv1.AnnotationMac]
 
 	subnet, err := c.macvlanclientset.MacvlanV1().
 		MacvlanSubnets(macvlanv1.MacvlanSubnetNamespace).
@@ -64,7 +65,7 @@ func (c *Controller) addMacvlanIP(pod *corev1.Pod) error {
 		allocatedIP, annotationCIDR, err = c.allocateSingleIP(pod, subnet, annotationIP)
 	} else if isMultipleIP(annotationIP) {
 		log.Info("alloate in multiple")
-		allocatedIP, annotationCIDR, err = c.allocateMultipleIP(pod, subnet, annotationIP)
+		allocatedIP, annotationCIDR, annotationMac, err = c.allocateMultipleIP(pod, subnet, annotationIP, annotationMac)
 	} else {
 		c.eventMacvlanIPError(pod, fmt.Errorf("annotation ip invalid: %s", annotationIP))
 		return err
@@ -101,11 +102,10 @@ func (c *Controller) addMacvlanIP(pod *corev1.Pod) error {
 		return err
 	}
 
-	// create macvlanip
-	annotationMac := pod.GetAnnotations()[macvlanv1.AnnotationMac]
 	if annotationMac == "auto" {
 		annotationMac = ""
 	}
+	// create macvlanip
 
 	macvlanip := &macvlanv1.MacvlanIP{
 		ObjectMeta: metav1.ObjectMeta{
