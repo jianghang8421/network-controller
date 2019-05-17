@@ -5,16 +5,16 @@ import (
 )
 
 const (
-	EventMacvlanSubnetError = "MacvlanSubnetError"
-	EventMacvlanIPError     = "MacvlanIPError"
+	eventMacvlanSubnetError = "MacvlanSubnetError"
+	eventMacvlanIPError     = "MacvlanIPError"
 
-	MessageNoEnoughIP = "No enough ip resouce in subnet: %s"
+	messageNoEnoughIP = "No enough ip resouce in subnet: %s"
 )
 
 func (c *Controller) eventMacvlanSubnetError(pod *corev1.Pod, err error) {
-	c.recorder.Event(pod, corev1.EventTypeNormal, EventMacvlanSubnetError, err.Error())
+	c.recorder.Event(pod, corev1.EventTypeNormal, eventMacvlanSubnetError, err.Error())
 }
 
 func (c *Controller) eventMacvlanIPError(pod *corev1.Pod, err error) {
-	c.recorder.Event(pod, corev1.EventTypeNormal, EventMacvlanIPError, err.Error())
+	c.recorder.Event(pod, corev1.EventTypeNormal, eventMacvlanIPError, err.Error())
 }

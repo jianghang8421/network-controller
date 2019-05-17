@@ -15,7 +15,7 @@ spec:
       labels:
         app: nginx
       annotations:
-        k8s.v1.cni.cncf.io/networks: static-macvlan-cni
+        k8s.v1.cni.cncf.io/networks: static-macvlan-cni-cfg
         macvlan.pandaria.cattle.io/ip: 192.168.1.1
         macvlan.pandaria.cattle.io/subnet: eth0.100
     spec:

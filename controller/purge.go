@@ -17,21 +17,22 @@ import (
 const intervalSeconds int64 = 3600
 
 type purger struct {
-	podsLister       corelisters.PodLister
+	podLister        corelisters.PodLister
 	macvlanipLister  listers.MacvlanIPLister
-	macvlanclientset clientset.Interface
+	macvlanClientset clientset.Interface
 }
 
+// StartPurgeDaemon purge macvlanips at intervals
 func StartPurgeDaemon(
 	macvlanipLister listers.MacvlanIPLister,
-	podsLister corelisters.PodLister,
-	macvlanclientset clientset.Interface,
+	podLister corelisters.PodLister,
+	macvlanClientset clientset.Interface,
 	done <-chan struct{}) {
 
 	p := &purger{
-		macvlanclientset: macvlanclientset,
+		macvlanClientset: macvlanClientset,
 		macvlanipLister:  macvlanipLister,
-		podsLister:       podsLister,
+		podLister:        podLister,
 	}
 	go wait.JitterUntil(p.purge, time.Duration(intervalSeconds)*time.Second, .1, true, done)
 }
@@ -44,8 +45,8 @@ func (p *purger) purge() {
 
 	var count int
 	for _, ip := range ips {
-		if p.podNotExist(ip) {
-			err = p.macvlanclientset.MacvlanV1().MacvlanIPs(ip.Namespace).Delete(ip.Name, &metav1.DeleteOptions{})
+		if p.isPodNotExist(ip) {
+			err = p.macvlanClientset.MacvlanV1().MacvlanIPs(ip.Namespace).Delete(ip.Name, &metav1.DeleteOptions{})
 			if err != nil && !k8serrors.IsNotFound(err) {
 				log.Errorf("Purge: error while deleting expired macvlanip %v: %v", err, ip.Name)
 				continue
@@ -58,8 +59,8 @@ func (p *purger) purge() {
 	}
 }
 
-func (p *purger) podNotExist(ip *macvlanv1.MacvlanIP) bool {
-	_, err := p.podsLister.Pods(ip.Namespace).Get(ip.Name)
+func (p *purger) isPodNotExist(ip *macvlanv1.MacvlanIP) bool {
+	_, err := p.podLister.Pods(ip.Namespace).Get(ip.Name)
 	if err != nil && k8serrors.IsNotFound(err) {
 		return true
 	}

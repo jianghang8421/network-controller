@@ -25,14 +25,14 @@ func (c *Controller) onMacvlanSubnetAdd(obj interface{}) {
 	subnet.Labels["mode"] = subnet.Spec.Mode
 
 	if subnet.Spec.Gateway == "" {
-		gateway, err := ipcalc.DefaultGatewayByCIDR(subnet.Spec.CIDR)
+		gateway, err := ipcalc.CalcDefaultGateway(subnet.Spec.CIDR)
 		if err != nil {
 			log.Errorf("CalcGatewayByCIDR error : %v %s", err, subnet.Spec.CIDR)
 		}
 		subnet.Spec.Gateway = gateway.String()
 	}
 
-	_, err := c.macvlanclientset.MacvlanV1().MacvlanSubnets("kube-system").Update(subnet)
+	_, err := c.macvlanClientset.MacvlanV1().MacvlanSubnets("kube-system").Update(subnet)
 	if err != nil {
 		log.Errorf("MacvlanSubnets Update : %v %s %v", err, subnet.Name, subnet)
 	}

@@ -25,29 +25,29 @@ func (c *Controller) enqueuePod(obj interface{}) {
 	c.workqueue.Add(key)
 }
 
-func (c *Controller) enqueueDeletePod(obj interface{}) {
-	var key string
-	var err error
-	if key, err = cache.DeletionHandlingMetaNamespaceKeyFunc(obj); err != nil {
-		utilruntime.HandleError(err)
-		return
-	}
-	c.workqueue.Add(key)
-}
+// func (c *Controller) enqueueDeletePod(obj interface{}) {
+// 	var key string
+// 	var err error
+// 	if key, err = cache.DeletionHandlingMetaNamespaceKeyFunc(obj); err != nil {
+// 		utilruntime.HandleError(err)
+// 		return
+// 	}
+// 	c.workqueue.Add(key)
+// }
 
-func (c *Controller) addMacvlanIP(pod *corev1.Pod) error {
+func (c *Controller) doAddMacvlanIP(pod *corev1.Pod) error {
 	var err error
 	if !isMacvlanPod(pod) {
 		return nil
 	}
 
 	annotationIP := pod.Annotations[macvlanv1.AnnotationIP]
-	macvlansubnetName := pod.Annotations[macvlanv1.AnnotationSubnet]
+	annotationSubnet := pod.Annotations[macvlanv1.AnnotationSubnet]
 	annotationMac := pod.Annotations[macvlanv1.AnnotationMac]
 
-	subnet, err := c.macvlanclientset.MacvlanV1().
+	subnet, err := c.macvlanClientset.MacvlanV1().
 		MacvlanSubnets(macvlanv1.MacvlanSubnetNamespace).
-		Get(macvlansubnetName, metav1.GetOptions{})
+		Get(annotationSubnet, metav1.GetOptions{})
 
 	if err != nil {
 		c.eventMacvlanSubnetError(pod, err)
@@ -56,16 +56,22 @@ func (c *Controller) addMacvlanIP(pod *corev1.Pod) error {
 
 	// allocate ip in subnet
 	var allocatedIP net.IP
-	var annotationCIDR string
+	var macvlanipCIDR string
+	var macvlanipMac string
+
+	if annotationMac == "auto" {
+		macvlanipMac = ""
+	}
+
 	if annotationIP == "auto" {
-		log.Info("alloate in auto")
-		allocatedIP, annotationCIDR, err = c.allocateAutoModeIP(pod, subnet)
+		log.Info("alloate ip mode: auto")
+		allocatedIP, macvlanipCIDR, err = c.allocateAutoIP(pod, subnet)
 	} else if isSingleIP(annotationIP) {
-		log.Info("alloate in single")
-		allocatedIP, annotationCIDR, err = c.allocateSingleIP(pod, subnet, annotationIP)
+		log.Info("alloate ip mode: single")
+		allocatedIP, macvlanipCIDR, err = c.allocateSingleIP(pod, subnet, annotationIP)
 	} else if isMultipleIP(annotationIP) {
-		log.Info("alloate in multiple")
-		allocatedIP, annotationCIDR, annotationMac, err = c.allocateMultipleIP(pod, subnet, annotationIP, annotationMac)
+		log.Info("alloate ip mode: multiple")
+		allocatedIP, macvlanipCIDR, macvlanipMac, err = c.allocateMultipleIP(pod, subnet, annotationIP, annotationMac)
 	} else {
 		c.eventMacvlanIPError(pod, fmt.Errorf("annotation ip invalid: %s", annotationIP))
 		return err
@@ -76,24 +82,24 @@ func (c *Controller) addMacvlanIP(pod *corev1.Pod) error {
 		return err
 	}
 
-	// update macvlanip label[ip/selectedip]
+	// update macvlanip label(ip, selectedip)
 	retryErr := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		// Retrieve the latest version of Deployment before attempting update
+		// Retrieve the latest version of Pod before attempting update
 		// RetryOnConflict uses exponential backoff to avoid exhausting the apiserver
-		result, getErr := c.kubeclientset.CoreV1().Pods(pod.Namespace).Get(pod.Name, metav1.GetOptions{})
+		result, getErr := c.kubeClientset.CoreV1().Pods(pod.Namespace).Get(pod.Name, metav1.GetOptions{})
 		if getErr != nil {
-			log.Errorf("Failed to get latest version of Deployment: %v", getErr)
+			log.Errorf("Failed to get latest version of Pod: %v", getErr)
 			return getErr
 		}
 		if result.Labels == nil {
 			result.Labels = map[string]string{}
 		}
 
-		result.Labels[macvlanv1.LabelSelectedIP] = allocatedIP.String()
 		hash := fmt.Sprintf("%x", sha1.Sum([]byte(annotationIP)))
 		result.Labels[macvlanv1.LabelMultipleIPHash] = hash
+		result.Labels[macvlanv1.LabelSelectedIP] = allocatedIP.String()
 
-		_, updateErr := c.kubeclientset.CoreV1().Pods(result.Namespace).Update(result)
+		_, updateErr := c.kubeClientset.CoreV1().Pods(result.Namespace).Update(result)
 
 		return updateErr
 	})
@@ -102,12 +108,38 @@ func (c *Controller) addMacvlanIP(pod *corev1.Pod) error {
 		return err
 	}
 
-	if annotationMac == "auto" {
-		annotationMac = ""
-	}
 	// create macvlanip
+	macvlanip := makeMacvlanIP(pod, subnet, macvlanipCIDR, macvlanipMac)
+	info, err := c.macvlanClientset.MacvlanV1().MacvlanIPs(pod.Namespace).Create(macvlanip)
+	if err != nil {
+		c.eventMacvlanIPError(pod, err)
+		return err
+	}
 
-	macvlanip := &macvlanv1.MacvlanIP{
+	log.Infof("MacvlanIP created: %v", info.Spec)
+
+	// svc
+	if err := c.SyncService(pod); err != nil {
+		log.Errorf("Sync service error: %v", err)
+	}
+	return nil
+}
+
+func isMacvlanPod(pod *corev1.Pod) bool {
+	_, exist := pod.GetAnnotations()[macvlanv1.AnnotationIP]
+	if !exist {
+		return false
+	}
+
+	_, exist = pod.GetAnnotations()[macvlanv1.AnnotationSubnet]
+	if !exist {
+		return false
+	}
+	return true
+}
+
+func makeMacvlanIP(pod *corev1.Pod, subnet *macvlanv1.MacvlanSubnet, cidr, mac string) *macvlanv1.MacvlanIP {
+	return &macvlanv1.MacvlanIP{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      pod.Name,
 			Namespace: pod.Namespace,
@@ -124,31 +156,10 @@ func (c *Controller) addMacvlanIP(pod *corev1.Pod) error {
 			},
 		},
 		Spec: macvlanv1.MacvlanIPSpec{
-			CIDR:   annotationCIDR,
-			MAC:    annotationMac,
+			CIDR:   cidr,
+			MAC:    mac,
 			PodID:  string(pod.GetUID()),
 			Subnet: subnet.Name,
 		},
 	}
-	info, err := c.macvlanclientset.MacvlanV1().MacvlanIPs(pod.Namespace).Create(macvlanip)
-	if err != nil {
-		c.eventMacvlanIPError(pod, err)
-		return err
-	}
-
-	log.Infof("MacvlanIP created: %v", info.Spec)
-	return nil
-}
-
-func isMacvlanPod(pod *corev1.Pod) bool {
-	_, exist := pod.GetAnnotations()[macvlanv1.AnnotationIP]
-	if !exist {
-		return false
-	}
-
-	_, exist = pod.GetAnnotations()[macvlanv1.AnnotationSubnet]
-	if !exist {
-		return false
-	}
-	return true
 }

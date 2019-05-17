@@ -9,22 +9,19 @@ import (
 )
 
 var (
-	cniCfgNameOld = "static-macvlan-cni"
-	cniCfgName    = "static-macvlan-cni-cfg"
-
-	networkAttatchmentDef = schema.GroupVersionResource{
+	networkAttatchmentConfigName = "static-macvlan-cni-cfg"
+	networkAttatchmentDefinition = schema.GroupVersionResource{
 		Group:    "k8s.cni.cncf.io",
 		Version:  "v1",
 		Resource: "network-attachment-definitions",
 	}
 )
 
-func newNetworkAttachDef(name, namespace string) *unstructured.Unstructured {
-
+func makeNetworkAttachmentDefinition(name, namespace string) *unstructured.Unstructured {
 	return &unstructured.Unstructured{
 		Object: map[string]interface{}{
 			"kind":       "NetworkAttachmentDefinition",
-			"apiVersion": networkAttatchmentDef.Group + "/" + networkAttatchmentDef.Version,
+			"apiVersion": networkAttatchmentDefinition.Group + "/" + networkAttatchmentDefinition.Version,
 			"metadata": map[string]interface{}{
 				"name":      name,
 				"namespace": namespace,
@@ -56,11 +53,10 @@ func (c *Controller) onNamespaceAdd(obj interface{}) {
 	}
 	log.Infof("Namespace created: %s %s", ns.Namespace, ns.Name)
 
-	_, err := c.dynamicKubeClient.Resource(networkAttatchmentDef).Namespace(ns.Name).Create(newNetworkAttachDef(cniCfgName, ns.Name), metav1.CreateOptions{})
-	if err != nil {
-		log.Infof("NetworkAttachmentDef create error: %s %v", ns.Name, err)
-	}
-	_, err = c.dynamicKubeClient.Resource(networkAttatchmentDef).Namespace(ns.Name).Create(newNetworkAttachDef(cniCfgNameOld, ns.Name), metav1.CreateOptions{})
+	_, err := c.kubeDynamicClientset.
+		Resource(networkAttatchmentDefinition).
+		Namespace(ns.Name).
+		Create(makeNetworkAttachmentDefinition(networkAttatchmentConfigName, ns.Name), metav1.CreateOptions{})
 	if err != nil {
 		log.Infof("NetworkAttachmentDef create error: %s %v", ns.Name, err)
 	}
@@ -73,11 +69,10 @@ func (c *Controller) onNamespaceDelete(obj interface{}) {
 	}
 	log.Infof("Namespace delete: %s %s", ns.Namespace, ns.Name)
 
-	err := c.dynamicKubeClient.Resource(networkAttatchmentDef).Namespace(ns.Name).Delete(cniCfgName, &metav1.DeleteOptions{})
-	if err != nil {
-		log.Infof("NetworkAttachmentDef delete error: %s %v", ns.Name, err)
-	}
-	err = c.dynamicKubeClient.Resource(networkAttatchmentDef).Namespace(ns.Name).Delete(cniCfgNameOld, &metav1.DeleteOptions{})
+	err := c.kubeDynamicClientset.
+		Resource(networkAttatchmentDefinition).
+		Namespace(ns.Name).
+		Delete(networkAttatchmentConfigName, &metav1.DeleteOptions{})
 	if err != nil {
 		log.Infof("NetworkAttachmentDef delete error: %s %v", ns.Name, err)
 	}

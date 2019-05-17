@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"time"
 
 	"github.com/ehazlett/simplelog"
@@ -27,8 +26,14 @@ var (
 	kubeconfig string
 )
 
+func init() {
+	log.SetFormatter(&simplelog.SimpleFormatter{})
+	flag.StringVar(&kubeconfig, "kubeconfig", "", "Path to a kubeconfig. Only required if out-of-cluster.")
+	flag.StringVar(&masterURL, "master", "", "The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.")
+}
+
 func main() {
-	fmt.Println("network-controller")
+	log.Info("network-controller")
 	flag.Parse()
 
 	var err error
@@ -48,28 +53,28 @@ func main() {
 	// set up signals so we handle the first shutdown signal gracefully
 	stopCh := signals.SetupSignalHandler()
 
-	kubeClient, err := kubernetes.NewForConfig(cfg)
+	kubeClientset, err := kubernetes.NewForConfig(cfg)
 	if err != nil {
 		log.Fatalf("Error building kubernetes clientset: %s", err.Error())
 	}
 
-	dynamicKubeClient, err := dynamic.NewForConfig(cfg)
+	kubeDynamicClientset, err := dynamic.NewForConfig(cfg)
 	if err != nil {
 		log.Fatalf("Error building example clientset: %s", err.Error())
 	}
 
-	macvlanClientSet, err := clientset.NewForConfig(cfg)
+	macvlanClientset, err := clientset.NewForConfig(cfg)
 	if err != nil {
 		log.Fatalf("Error building example clientset: %s", err.Error())
 	}
 
-	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(kubeClient, time.Second*30)
-	macvlanInformerFactory := informers.NewSharedInformerFactory(macvlanClientSet, time.Second*30)
+	kubeInformerFactory := kubeinformers.NewSharedInformerFactory(kubeClientset, time.Second*30)
+	macvlanInformerFactory := informers.NewSharedInformerFactory(macvlanClientset, time.Second*30)
 
 	c := controller.NewController(
-		kubeClient,
-		dynamicKubeClient,
-		macvlanClientSet,
+		kubeClientset,
+		kubeDynamicClientset,
+		macvlanClientset,
 		kubeInformerFactory.Apps().V1().Deployments(),
 		kubeInformerFactory.Core().V1().Namespaces(),
 		kubeInformerFactory.Core().V1().Pods(),
@@ -79,19 +84,12 @@ func main() {
 
 	// notice that there is no need to run Start methods in a separate goroutine. (i.e. go kubeInformerFactory.Start(stopCh)
 	// Start method is non-blocking and runs all registered informers in a dedicated goroutine.
-	fmt.Println("informer start")
+	log.Info("informer start")
 	kubeInformerFactory.Start(stopCh)
 	macvlanInformerFactory.Start(stopCh)
-	fmt.Println("controller run")
+	log.Info("controller run")
 
 	if err = c.Run(1, stopCh); err != nil {
 		log.Fatalf("Error running controller: %s", err.Error())
 	}
-}
-
-func init() {
-
-	log.SetFormatter(&simplelog.SimpleFormatter{})
-	flag.StringVar(&kubeconfig, "kubeconfig", "", "Path to a kubeconfig. Only required if out-of-cluster.")
-	flag.StringVar(&masterURL, "master", "", "The address of the Kubernetes API server. Overrides any value in kubeconfig. Only required if out-of-cluster.")
 }

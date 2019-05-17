@@ -6,7 +6,7 @@ metadata:
   labels:
     app: samplepod
   annotations:
-    k8s.v1.cni.cncf.io/networks: static-macvlan-cni
+    k8s.v1.cni.cncf.io/networks: static-macvlan-cni-cfg
     macvlan.pandaria.cattle.io/ip: auto
     macvlan.pandaria.cattle.io/subnet: eth0.100
 spec:

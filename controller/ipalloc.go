@@ -15,27 +15,27 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func (c *Controller) allocateAutoModeIP(pod *corev1.Pod, subnet *macvlanv1.MacvlanSubnet) (net.IP, string, error) {
-	ips, err := c.macvlanclientset.MacvlanV1().
+func (c *Controller) allocateAutoIP(pod *corev1.Pod, subnet *macvlanv1.MacvlanSubnet) (net.IP, string, error) {
+	ips, err := c.macvlanClientset.MacvlanV1().
 		MacvlanIPs("").
 		List(metav1.ListOptions{LabelSelector: "subnet=" + subnet.Name})
 
-	used := macvlanListIP(ips)
-	used = append(used, net.ParseIP(subnet.Spec.Gateway))
-	hosts, err := GetSubnetHosts(subnet)
+	// add gateway ip to used list
+	used := append(convertToIPList(ips), net.ParseIP(subnet.Spec.Gateway))
+	hosts, err := calcSubnetHosts(subnet)
 	if err != nil {
 		c.eventMacvlanSubnetError(pod, err)
 	}
 
-	useable := ipcalc.RemoveUsedHosts(hosts, used)
-	if len(useable) == 0 {
-		return nil, "", fmt.Errorf(MessageNoEnoughIP, subnet.Name)
+	usable := ipcalc.RemoveUsedHosts(hosts, used)
+	if len(usable) == 0 {
+		return nil, "", fmt.Errorf(messageNoEnoughIP, subnet.Name)
 	}
-	ip, cidr := useable[0], addMask(useable[0], subnet.Spec.CIDR)
+	ip, cidr := usable[0], convertIPtoCIDR(usable[0], subnet.Spec.CIDR)
 	return ip, cidr, nil
 }
 
-func macvlanListIP(ips *v1.MacvlanIPList) []net.IP {
+func convertToIPList(ips *v1.MacvlanIPList) []net.IP {
 	used := []net.IP{}
 	for _, item := range ips.Items {
 		ip := strings.Split(item.Spec.CIDR, "/")
@@ -46,7 +46,7 @@ func macvlanListIP(ips *v1.MacvlanIPList) []net.IP {
 	return used
 }
 
-func addMask(ip net.IP, cidr string) string {
+func convertIPtoCIDR(ip net.IP, cidr string) string {
 	nets := strings.Split(cidr, "/")
 	suffix := ""
 	if len(nets) == 2 {
@@ -55,33 +55,31 @@ func addMask(ip net.IP, cidr string) string {
 	return ip.String() + "/" + suffix
 }
 
-func GetSubnetHosts(subnet *macvlanv1.MacvlanSubnet) ([]net.IP, error) {
-
+func calcSubnetHosts(subnet *macvlanv1.MacvlanSubnet) ([]net.IP, error) {
 	hosts, err := ipcalc.CIDRtoHosts(subnet.Spec.CIDR)
 	if err != nil {
 		return nil, err
 	}
 
-	ranges := CalcHostsFromRanges(subnet.Spec.Ranges)
+	ranges := calcHostsInRanges(subnet.Spec.Ranges)
 	if len(ranges) != 0 {
-		useable := ipcalc.GetUseableHosts(hosts, ranges)
-		return useable, nil
+		usable := ipcalc.GetUsableHosts(hosts, ranges)
+		return usable, nil
 	}
 
 	return hosts, nil
 }
 
-func CalcHostsFromRanges(ranges []v1.IPRange) []net.IP {
+func calcHostsInRanges(ranges []v1.IPRange) []net.IP {
 	hosts := []net.IP{}
-
 	for _, v := range ranges {
 		ips := ipcalc.ParseIPRange(v.RangeStart, v.RangeEnd)
 		hosts = append(hosts, ips...)
 	}
-	return RemoveDuplicatesFromSlice(hosts)
+	return removeDuplicatesFromSlice(hosts)
 }
 
-func RemoveDuplicatesFromSlice(hosts []net.IP) []net.IP {
+func removeDuplicatesFromSlice(hosts []net.IP) []net.IP {
 	m := make(map[string]bool)
 	result := []net.IP{}
 	for _, item := range hosts {
@@ -99,33 +97,40 @@ func isSingleIP(ip string) bool {
 	return nil != net.ParseIP(ip)
 }
 
-func (c *Controller) allocateSingleIP(pod *corev1.Pod, subnet *macvlanv1.MacvlanSubnet, ipValue string) (net.IP, string, error) {
-	ips, err := c.macvlanclientset.MacvlanV1().
+func (c *Controller) allocateSingleIP(pod *corev1.Pod, subnet *macvlanv1.MacvlanSubnet, ipString string) (net.IP, string, error) {
+	ips, err := c.macvlanClientset.MacvlanV1().
 		MacvlanIPs("").
 		List(metav1.ListOptions{LabelSelector: "subnet=" + subnet.Name})
 
-	used := macvlanListIP(ips)
-	used = append(used, net.ParseIP(subnet.Spec.Gateway))
-	hosts, err := GetSubnetHosts(subnet)
+	// add gateway ip to used list
+	used := append(convertToIPList(ips), net.ParseIP(subnet.Spec.Gateway))
+	hosts, err := calcSubnetHosts(subnet)
 	if err != nil {
 		return nil, "", err
 	}
 
-	ip := net.ParseIP(ipValue)
+	ip := net.ParseIP(ipString)
 
-	if !InHosts(hosts, ip) {
-		return nil, "", fmt.Errorf("%s invalid in %s", ip.String(), subnet.Name)
+	if err := checkIPValidation(ip, hosts, used, subnet); err != nil {
+		return nil, "", err
 	}
 
-	if InHosts(used, ip) {
-		return nil, "", fmt.Errorf("%s is used in %s", ip.String(), subnet.Name)
-	}
-
-	cidr := addMask(ip, subnet.Spec.CIDR)
+	cidr := convertIPtoCIDR(ip, subnet.Spec.CIDR)
 	return ip, cidr, nil
 }
 
-func InHosts(h []net.IP, ip net.IP) bool {
+func checkIPValidation(ip net.IP, hosts, used []net.IP, subnet *macvlanv1.MacvlanSubnet) error {
+	if !isInHosts(hosts, ip) {
+		return fmt.Errorf("%s invalid in %s", ip.String(), subnet.Name)
+	}
+
+	if isInHosts(used, ip) {
+		return fmt.Errorf("%s is used in %s", ip.String(), subnet.Name)
+	}
+	return nil
+}
+
+func isInHosts(h []net.IP, ip net.IP) bool {
 	for _, v := range h {
 		if bytes.Compare(v, ip) == 0 {
 			return true
@@ -173,7 +178,7 @@ func (c *Controller) allocateMultipleIP(pod *corev1.Pod, subnet *macvlanv1.Macvl
 	}
 
 	hash := fmt.Sprintf("%x", sha1.Sum([]byte(annotationIP)))
-	ret, err := c.kubeclientset.CoreV1().
+	ret, err := c.kubeClientset.CoreV1().
 		Pods(pod.Namespace).
 		List(metav1.ListOptions{LabelSelector: macvlanv1.LabelMultipleIPHash + "=" + hash})
 
@@ -183,7 +188,6 @@ func (c *Controller) allocateMultipleIP(pod *corev1.Pod, subnet *macvlanv1.Macvl
 
 	log.Infof("labeled pod count： %v", len(ret.Items))
 	for _, v := range ret.Items {
-
 		labelIP := v.Labels[macvlanv1.LabelSelectedIP]
 		if labelIP != "" && ipUnused[labelIP] == true {
 			ipUnused[labelIP] = false
@@ -194,23 +198,19 @@ func (c *Controller) allocateMultipleIP(pod *corev1.Pod, subnet *macvlanv1.Macvl
 		if ipUnused[key] {
 			ip := net.ParseIP(key)
 
-			ips, err := c.macvlanclientset.MacvlanV1().
+			ips, err := c.macvlanClientset.MacvlanV1().
 				MacvlanIPs("").
 				List(metav1.ListOptions{LabelSelector: "subnet=" + subnet.Name})
 
-			used := macvlanListIP(ips)
-			used = append(used, net.ParseIP(subnet.Spec.Gateway))
-			hosts, err := GetSubnetHosts(subnet)
+			// add gateway ip to used list
+			used := append(convertToIPList(ips), net.ParseIP(subnet.Spec.Gateway))
+			hosts, err := calcSubnetHosts(subnet)
 			if err != nil {
 				return nil, "", "", err
 			}
 
-			if !InHosts(hosts, ip) {
-				return nil, "", "", fmt.Errorf("%s invalid in %s", ip.String(), subnet.Name)
-			}
-
-			if InHosts(used, ip) {
-				return nil, "", "", fmt.Errorf("%s is used in %s", ip.String(), subnet.Name)
+			if err := checkIPValidation(ip, hosts, used, subnet); err != nil {
+				return nil, "", "", err
 			}
 
 			mac := ""
@@ -218,10 +218,10 @@ func (c *Controller) allocateMultipleIP(pod *corev1.Pod, subnet *macvlanv1.Macvl
 				mac = ipToMac[key]
 			}
 
-			return ip, addMask(ip, subnet.Spec.CIDR), mac, nil
+			return ip, convertIPtoCIDR(ip, subnet.Spec.CIDR), mac, nil
 		}
 	}
 
-	// send event ip no enough
+	// error event: no enough ip
 	return nil, "", "", fmt.Errorf("No enough ip resouce in subnet: %s", annotationIP)
 }

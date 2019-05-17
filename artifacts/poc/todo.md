@@ -1,14 +1,6 @@
 - 创建workload ，去掉podid
-- macvlan subnet ，ip range
 - 逗号分隔，pod 多个ip 多个mac
-- pod update
-- cni static-ipam del
 - docs flannel默认出口 eth0
-- docs 配置权限 macvlansubnets macvlanips
-- owner reference
-- ip 正则， 192.168.1.1-192.168.1.1-xxxxx
-- 校验pod数量
-- cidr test
 
 
 # 前端
@@ -77,25 +69,29 @@ CIDR 字段 变更为IP，支持三种情况：
 	mac          macvlan.pandaria.cattle.io/mac
 ```
 
-iprange 
-multiple ip
-event log
-gateway ip
-static-macvlan-cni set promisc on
-own ref delete crd
-reconstructue
-airgap offline install: images.list 
-timer delete crd
-v0.2.1
+- todo
 
-macvlan svc discovy
-namespace bug
+```
+x iprange 
+x multiple ip
+x event log
+x gateway ip
+x static-macvlan-cni set promisc on
+x own ref delete crd
+x code refactoring
+x offline install: images.list 
+x timer delete crd
+x v0.2.1
+x namespace bug
+```
 
 v0.3.0
-*ui select multus-macvlan plugin
-*ingress ip select macvlan net1
 
+* macvlan svc discovy
+* ui select multus-macvlan plugin
+* ingress ip select macvlan net1
 
+```
 vlan范围：0~4095
     0，4095 保留 仅限系统使用 用户不能查看和使用这些VLAN
     1 正常 Cisco默认VLAN 用户能够使用该VLAN，但不能删除它
@@ -103,3 +99,4 @@ vlan范围：0~4095
     1002-1005 正常 用于FDDI和令牌环的Cisco默认VLAN 用户不能删除这些VLAN
     1006-1024 保留 仅限系统使用 用户不能查看和使用这些VLAN
     1025-4094 扩展 仅用于以太网VLAN
+```

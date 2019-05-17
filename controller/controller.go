@@ -29,70 +29,69 @@ import (
 
 const controllerAgentName = "network-controller"
 
-// Controller is the controller implementation for Foo resources
+// Controller is the controller implementation for macvlan-networking
 type Controller struct {
-	kubeclientset    kubernetes.Interface
-	macvlanclientset clientset.Interface
-
-	dynamicKubeClient dynamic.Interface
+	kubeClientset        kubernetes.Interface
+	kubeDynamicClientset dynamic.Interface
+	macvlanClientset     clientset.Interface
 
 	macvlanipsLister listers.MacvlanIPLister
 	macvlansSynced   cache.InformerSynced
 
-	MacvlanSubnetsLister listers.MacvlanSubnetLister
-	MacvlanSubnetsSynced cache.InformerSynced
+	macvlansubnetsLister listers.MacvlanSubnetLister
+	macvlansubnetsSynced cache.InformerSynced
 
-	podsLister corelisters.PodLister
+	podLister  corelisters.PodLister
 	podsSynced cache.InformerSynced
 
-	deploymentsLister appslisters.DeploymentLister
+	deploymentLister  appslisters.DeploymentLister
 	deploymentsSynced cache.InformerSynced
 
-	namespaceLister corelisters.NamespaceLister
-	namespaceSynced cache.InformerSynced
+	namespaceLister  corelisters.NamespaceLister
+	namespacesSynced cache.InformerSynced
 
 	workqueue workqueue.RateLimitingInterface
 	recorder  record.EventRecorder
 }
 
-// NewController returns a new sample controller
+// NewController returns a new macvlan controller
 func NewController(
-	kubeclientset kubernetes.Interface,
-	dynamicKubeClient dynamic.Interface,
-	macvlanclientset clientset.Interface,
+	kubeClientset kubernetes.Interface,
+	kubeDynamicClientset dynamic.Interface,
+	macvlanClientset clientset.Interface,
 	deploymentInformer appsinformers.DeploymentInformer,
 	namespaceInformer coreinformers.NamespaceInformer,
 	podInformer coreinformers.PodInformer,
 	macvlanipInformer informers.MacvlanIPInformer,
-	macvlanSubnetInformer informers.MacvlanSubnetInformer,
+	macvlansubnetInformer informers.MacvlanSubnetInformer,
 	done <-chan struct{}) *Controller {
 
 	utilruntime.Must(macvlanscheme.AddToScheme(scheme.Scheme))
 	log.Info("Creating event broadcaster")
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartLogging(log.Infof)
-	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: kubeclientset.CoreV1().Events("")})
+	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: kubeClientset.CoreV1().Events("")})
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: controllerAgentName})
 
 	controller := &Controller{
-		kubeclientset:     kubeclientset,
-		dynamicKubeClient: dynamicKubeClient,
-		macvlanclientset:  macvlanclientset,
+		kubeClientset:        kubeClientset,
+		kubeDynamicClientset: kubeDynamicClientset,
+		macvlanClientset:     macvlanClientset,
 
 		macvlanipsLister: macvlanipInformer.Lister(),
 		macvlansSynced:   macvlanipInformer.Informer().HasSynced,
 
-		MacvlanSubnetsLister: macvlanSubnetInformer.Lister(),
-		MacvlanSubnetsSynced: macvlanSubnetInformer.Informer().HasSynced,
+		macvlansubnetsLister: macvlansubnetInformer.Lister(),
+		macvlansubnetsSynced: macvlansubnetInformer.Informer().HasSynced,
 
-		podsLister: podInformer.Lister(),
+		podLister:  podInformer.Lister(),
 		podsSynced: podInformer.Informer().HasSynced,
 
-		deploymentsLister: deploymentInformer.Lister(),
+		deploymentLister:  deploymentInformer.Lister(),
 		deploymentsSynced: deploymentInformer.Informer().HasSynced,
 
-		namespaceLister: namespaceInformer.Lister(),
-		namespaceSynced: namespaceInformer.Informer().HasSynced,
+		namespaceLister:  namespaceInformer.Lister(),
+		namespacesSynced: namespaceInformer.Informer().HasSynced,
 
 		workqueue: workqueue.NewNamedRateLimitingQueue(workqueue.DefaultControllerRateLimiter(), "network-controller"),
 		recorder:  recorder,
@@ -104,7 +103,7 @@ func NewController(
 		AddFunc: controller.enqueuePod,
 	})
 
-	macvlanSubnetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
+	macvlansubnetInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: controller.onMacvlanSubnetAdd,
 	})
 
@@ -116,7 +115,7 @@ func NewController(
 	StartPurgeDaemon(
 		macvlanipInformer.Lister(),
 		podInformer.Lister(),
-		macvlanclientset,
+		macvlanClientset,
 		done)
 
 	return controller
@@ -135,7 +134,8 @@ func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 
 	// Wait for the caches to be synced before starting workers
 	log.Info("Waiting for informer caches to sync")
-	if ok := cache.WaitForCacheSync(stopCh, c.podsSynced, c.macvlansSynced); !ok {
+	if ok := cache.WaitForCacheSync(stopCh,
+		c.namespacesSynced, c.deploymentsSynced, c.podsSynced, c.macvlansSynced); !ok {
 		return fmt.Errorf("failed to wait for caches to sync")
 	}
 
@@ -227,7 +227,7 @@ func (c *Controller) syncHandler(key string) error {
 	}
 
 	// Get the Foo resource with this namespace/name
-	pod, err := c.podsLister.Pods(namespace).Get(name)
+	pod, err := c.podLister.Pods(namespace).Get(name)
 	if err != nil {
 		// The Foo resource may no longer exist, in which case we stop
 		// processing.
@@ -239,5 +239,5 @@ func (c *Controller) syncHandler(key string) error {
 		return err
 	}
 
-	return c.addMacvlanIP(pod)
+	return c.doAddMacvlanIP(pod)
 }

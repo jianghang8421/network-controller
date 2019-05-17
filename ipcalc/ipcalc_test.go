@@ -171,6 +171,11 @@ func Test_CIDRtoHosts(t *testing.T) {
 	if !testEq(hosts, expect) {
 		t.Errorf("hosts %v , expect %v", hosts, expect)
 	}
+
+	hosts, _ = CIDRtoHosts("")
+	if !testEq(hosts, nil) {
+		t.Errorf("hosts %v , expect %v", hosts, expect)
+	}
 }
 
 func Test_GetUseableHosts(t *testing.T) {
@@ -187,7 +192,7 @@ func Test_GetUseableHosts(t *testing.T) {
 		net.IPv4(192, 168, 1, 5),
 	}
 
-	hosts = GetUseableHosts(ip1, ip2)
+	hosts = GetUsableHosts(ip1, ip2)
 
 	expect = []net.IP{
 		net.IPv4(192, 168, 1, 1),
@@ -195,6 +200,18 @@ func Test_GetUseableHosts(t *testing.T) {
 	}
 	if !testEq(hosts, expect) {
 		t.Errorf("hosts %v , expect %v", hosts, expect)
+	}
+}
+func Test_CalcDefaultGateway(t *testing.T) {
+
+	ip, _ := CalcDefaultGateway("192.168.1.0/24")
+	if ip.String() != "192.168.1.1" {
+		t.Errorf("result %v", ip)
+	}
+
+	ip, _ = CalcDefaultGateway("")
+	if ip != nil {
+		t.Errorf("result %v", ip)
 	}
 }
 
@@ -211,6 +228,10 @@ func Test_ParseIPRange(t *testing.T) {
 		net.IPv4(192, 168, 1, 15),
 	}
 	if !testEq(hosts, expect) {
+		t.Errorf("hosts %v , expect %v", hosts, expect)
+	}
+
+	if !testEq(ParseIPRange("", ""), []net.IP{}) {
 		t.Errorf("hosts %v , expect %v", hosts, expect)
 	}
 }
