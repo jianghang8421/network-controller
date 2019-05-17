@@ -174,7 +174,9 @@ func (c *Controller) allocateMultipleIP(pod *corev1.Pod, subnet *macvlanv1.Macvl
 
 	for i, v := range ips {
 		ipUnused[v] = true
-		ipToMac[v] = macs[i]
+		if len(macs) != 0 {
+			ipToMac[v] = macs[i]
+		}
 	}
 
 	hash := fmt.Sprintf("%x", sha1.Sum([]byte(annotationIP)))
