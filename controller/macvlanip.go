@@ -118,8 +118,8 @@ func (c *Controller) doAddMacvlanIP(pod *corev1.Pod) error {
 
 	log.Infof("MacvlanIP created: %v", info.Spec)
 
-	// svc
-	if err := c.SyncService(pod); err != nil {
+	// auto sync svc
+	if err := c.SyncService(pod, macvlanip); err != nil {
 		log.Errorf("Sync service error: %v", err)
 	}
 	return nil

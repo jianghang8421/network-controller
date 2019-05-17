@@ -135,7 +135,7 @@ func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 	// Wait for the caches to be synced before starting workers
 	log.Info("Waiting for informer caches to sync")
 	if ok := cache.WaitForCacheSync(stopCh,
-		c.namespacesSynced, c.deploymentsSynced, c.podsSynced, c.macvlansSynced); !ok {
+		c.namespacesSynced, c.podsSynced, c.macvlansSynced); !ok {
 		return fmt.Errorf("failed to wait for caches to sync")
 	}
 
