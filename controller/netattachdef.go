@@ -3,14 +3,16 @@ package controller
 import (
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 var (
-	networkAttatchmentConfigName = "static-macvlan-cni-cfg"
-	networkAttatchmentDefinition = schema.GroupVersionResource{
+	// TODO: rename to "static-macvlan-cni-attach"
+	netAttatchDefName = "static-macvlan-cni"
+	netAttatchDef     = schema.GroupVersionResource{
 		Group:    "k8s.cni.cncf.io",
 		Version:  "v1",
 		Resource: "network-attachment-definitions",
@@ -21,7 +23,7 @@ func makeNetworkAttachmentDefinition(name, namespace string) *unstructured.Unstr
 	return &unstructured.Unstructured{
 		Object: map[string]interface{}{
 			"kind":       "NetworkAttachmentDefinition",
-			"apiVersion": networkAttatchmentDefinition.Group + "/" + networkAttatchmentDefinition.Version,
+			"apiVersion": netAttatchDef.Group + "/" + netAttatchDef.Version,
 			"metadata": map[string]interface{}{
 				"name":      name,
 				"namespace": namespace,
@@ -54,11 +56,13 @@ func (c *Controller) onNamespaceAdd(obj interface{}) {
 	log.Infof("Namespace created: %s %s", ns.Namespace, ns.Name)
 
 	_, err := c.kubeDynamicClientset.
-		Resource(networkAttatchmentDefinition).
+		Resource(netAttatchDef).
 		Namespace(ns.Name).
-		Create(makeNetworkAttachmentDefinition(networkAttatchmentConfigName, ns.Name), metav1.CreateOptions{})
+		Create(makeNetworkAttachmentDefinition(netAttatchDefName, ns.Name), metav1.CreateOptions{})
 	if err != nil {
-		log.Infof("NetworkAttachmentDef create error: %s %v", ns.Name, err)
+		if !errors.IsAlreadyExists(err) {
+			log.Infof("NetworkAttachmentDef create error: %s %v", ns.Name, err)
+		}
 	}
 }
 
@@ -70,9 +74,9 @@ func (c *Controller) onNamespaceDelete(obj interface{}) {
 	log.Infof("Namespace delete: %s %s", ns.Namespace, ns.Name)
 
 	err := c.kubeDynamicClientset.
-		Resource(networkAttatchmentDefinition).
+		Resource(netAttatchDef).
 		Namespace(ns.Name).
-		Delete(networkAttatchmentConfigName, &metav1.DeleteOptions{})
+		Delete(netAttatchDefName, &metav1.DeleteOptions{})
 	if err != nil {
 		log.Infof("NetworkAttachmentDef delete error: %s %v", ns.Name, err)
 	}

@@ -814,3 +814,30 @@ spec:
       - image: cnrancher/network-controller:v0.3.0
         name: network-controller
 ---
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kube-net-attach-def-controller
+  namespace: kube-system
+  labels:
+    app: kube-net-attach-def-controller
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kube-net-attach-def-controller
+  template:
+    metadata:
+      namespace: kube-system
+      labels:
+        app: kube-net-attach-def-controller
+    spec:
+      serviceAccountName: multus
+      containers:
+      - image: cnrancher/k8s-net-attach-def-controller:latest
+        name: kube-net-attach-def-controller
+        imagePullPolicy: IfNotPresent
+        command: [ "/bin/sh", "-c", "--" ]
+        args: [ "k8s-net-attach-def-controller --logtostderr 10;" ]
+---

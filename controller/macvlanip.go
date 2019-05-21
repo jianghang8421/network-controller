@@ -6,6 +6,7 @@ import (
 	"net"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/util/retry"
@@ -112,14 +113,17 @@ func (c *Controller) doAddMacvlanIP(pod *corev1.Pod) error {
 	macvlanip := makeMacvlanIP(pod, subnet, macvlanipCIDR, macvlanipMac)
 	info, err := c.macvlanClientset.MacvlanV1().MacvlanIPs(pod.Namespace).Create(macvlanip)
 	if err != nil {
-		c.eventMacvlanIPError(pod, err)
-		return err
+		// ignore when already exists
+		if !errors.IsAlreadyExists(err) {
+			c.eventMacvlanIPError(pod, err)
+			return err
+		}
 	}
 
 	log.Infof("MacvlanIP created: %v", info.Spec)
 
 	// auto sync svc
-	if err := c.SyncService(pod, macvlanip); err != nil {
+	if err := c.SyncService(pod.Name, pod.Namespace); err != nil {
 		log.Errorf("Sync service error: %v", err)
 	}
 	return nil
@@ -139,6 +143,7 @@ func isMacvlanPod(pod *corev1.Pod) bool {
 }
 
 func makeMacvlanIP(pod *corev1.Pod, subnet *macvlanv1.MacvlanSubnet, cidr, mac string) *macvlanv1.MacvlanIP {
+	controller := true
 	return &macvlanv1.MacvlanIP{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      pod.Name,
@@ -152,6 +157,7 @@ func makeMacvlanIP(pod *corev1.Pod, subnet *macvlanv1.MacvlanSubnet, cidr, mac s
 					Kind:       "Pod",
 					UID:        pod.UID,
 					Name:       pod.Name,
+					Controller: &controller,
 				},
 			},
 		},

@@ -36,7 +36,8 @@ poc:
 	cat ./artifacts/multus-daemonset.yml \
 		./artifacts/network-cni-daemonset.yml \
 		./artifacts/flannel-daemonset.yml \
-		./artifacts/network-controller.yml > ./artifacts/poc/macvlan-network.yml
+		./artifacts/network-controller.yml \
+		./artifacts/k8s-net-attach-def-controller.yml > ./artifacts/poc/macvlan-network.yml
 
 rc: ci poc
 	docker build -f package/Dockerfile -t wardenlym/network-controller:v0.3.0 .
