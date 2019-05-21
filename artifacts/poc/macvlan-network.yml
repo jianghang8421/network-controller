@@ -94,6 +94,7 @@ data:
           ]
         }
       ],
+      "logFile": "/var/log/multus.log",
       "kubeconfig": "/etc/cni/net.d/multus.d/multus.kubeconfig"
     }
 # -------------- for openshift.
@@ -810,6 +811,6 @@ spec:
     spec:
       serviceAccountName: multus
       containers:
-      - image: cnrancher/network-controller:v0.2.1
+      - image: cnrancher/network-controller:v0.3.0
         name: network-controller
 ---
