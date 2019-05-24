@@ -1,4 +1,5 @@
 nfvpe/multus:v3.2
 quay.io/coreos/flannel:v0.10.0-amd64
 cnrancher/static-macvlan-cni:v0.2.1
-cnrancher/network-controller:v0.2.1
+cnrancher/network-controller:v0.3.0
+cnrancher/k8s-net-attach-def-controller:latest

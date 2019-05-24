@@ -100,3 +100,29 @@ vlan范围：0~4095
     1006-1024 保留 仅限系统使用 用户不能查看和使用这些VLAN
     1025-4094 扩展 仅用于以太网VLAN
 ```
+
+* ui select multus-flannel
+
+<添加集群> - <Custom> 界面中 <网络组件> 新增一项, 显示为：Multus+Flannel
+
+windows support 和 项目网络隔离 两个单选框disable，置灰
+
+模式选项：
+
+当选择这种模式时，设置
+
+```
+network:
+  plugin: "multus-flannel"
+```
+
+本版本提供一个参数：flannel_iface, 默认时不需要传。
+
+当用户输入时（比如输入“ens4”），将值作为字符串设置在option中：
+
+```
+network:
+  plugin: "multus-flannel"
+  options:
+    flannel_iface: "ens4"
+```
