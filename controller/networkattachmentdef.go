@@ -11,6 +11,7 @@ import (
 var (
 	cniCfgNameOld = "static-macvlan-cni"
 	cniCfgName    = "static-macvlan-cni-cfg"
+	cniCfgName2   = "static-macvlan-cni-attach"
 
 	networkAttatchmentDef = schema.GroupVersionResource{
 		Group:    "k8s.cni.cncf.io",
@@ -64,6 +65,10 @@ func (c *Controller) onNamespaceAdd(obj interface{}) {
 	if err != nil {
 		log.Infof("NetworkAttachmentDef create error: %s %v", ns.Name, err)
 	}
+	_, err = c.dynamicKubeClient.Resource(networkAttatchmentDef).Namespace(ns.Name).Create(newNetworkAttachDef(cniCfgName2, ns.Name), metav1.CreateOptions{})
+	if err != nil {
+		log.Infof("NetworkAttachmentDef create error: %s %v", ns.Name, err)
+	}
 }
 
 func (c *Controller) onNamespaceDelete(obj interface{}) {
@@ -78,6 +83,10 @@ func (c *Controller) onNamespaceDelete(obj interface{}) {
 		log.Infof("NetworkAttachmentDef delete error: %s %v", ns.Name, err)
 	}
 	err = c.dynamicKubeClient.Resource(networkAttatchmentDef).Namespace(ns.Name).Delete(cniCfgNameOld, &metav1.DeleteOptions{})
+	if err != nil {
+		log.Infof("NetworkAttachmentDef delete error: %s %v", ns.Name, err)
+	}
+	err = c.dynamicKubeClient.Resource(networkAttatchmentDef).Namespace(ns.Name).Delete(cniCfgName2, &metav1.DeleteOptions{})
 	if err != nil {
 		log.Infof("NetworkAttachmentDef delete error: %s %v", ns.Name, err)
 	}
