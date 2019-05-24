@@ -10,8 +10,7 @@ import (
 )
 
 var (
-	// TODO: rename to "static-macvlan-cni-attach"
-	netAttatchDefName = "static-macvlan-cni"
+	netAttatchDefName = "static-macvlan-cni-attach"
 	netAttatchDef     = schema.GroupVersionResource{
 		Group:    "k8s.cni.cncf.io",
 		Version:  "v1",
