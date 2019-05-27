@@ -28,17 +28,17 @@ dev:
 clean:
 	rm -rf bin/ dist/
 
-image:
+image: ci templates
 	docker build -f package/Dockerfile -t cnrancher/network-controller:v0.3.0 .
 	docker push cnrancher/network-controller:v0.3.0
 
-poc:
+templates:
 	cat ./artifacts/multus-daemonset.yml \
 		./artifacts/network-cni-daemonset.yml \
 		./artifacts/flannel-daemonset.yml \
 		./artifacts/network-controller.yml \
-		./artifacts/k8s-net-attach-def-controller.yml > ./artifacts/poc/macvlan-network.yml
+		./artifacts/k8s-net-attach-def-controller.yml > ./artifacts/templates/multus-flannel-macvlan.yml
 
-rc: ci poc
+rc: ci templates
 	docker build -f package/Dockerfile -t wardenlym/network-controller:v0.3.0 .
 	docker push wardenlym/network-controller:v0.3.0

@@ -840,7 +840,7 @@ spec:
     spec:
       serviceAccountName: multus
       containers:
-      - image: cnrancher/k8s-net-attach-def-controller:latest
+      - image: cnrancher/k8s-net-attach-def-controller:v0.1.0
         name: kube-net-attach-def-controller
         imagePullPolicy: IfNotPresent
         command: [ "/bin/sh", "-c", "--" ]

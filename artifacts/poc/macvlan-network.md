@@ -16,14 +16,7 @@ ip link set eth0 promisc on
 server请下载：
 
 ```
-docker pull cnrancher/rancher:v2.2.2-macvlan
-```
-
-agent请使用：
-
-```
-docker pull rancher/rancher-agent:v2.2.2
-docker tag rancher/rancher-agent:v2.2.2 cnrancher/rancher-agent:v2.2.2-macvlan
+docker pull cnrancher/rancher:v2.2.3
 ```
 
 其他需要的镜像(image.list):
@@ -33,7 +26,7 @@ nfvpe/multus:v3.2
 quay.io/coreos/flannel:v0.10.0-amd64
 cnrancher/static-macvlan-cni:v0.2.1
 cnrancher/network-controller:v0.3.0
-cnrancher/k8s-net-attach-def-controller:latest
+cnrancher/k8s-net-attach-def-controller:v0.1.0
 ```
 
 ### 创建集群
@@ -49,7 +42,7 @@ network:
   plugin: "none"
 
 addons_include:
-  - https://raw.githubusercontent.com/cnrancher/network-controller/v0.3.0/artifacts/poc/macvlan-network.yml
+  - https://raw.githubusercontent.com/cnrancher/network-controller/v0.3.0/artifacts/templates/multus-flannel-macvlan.yml
 
 ```
 
